@@ -2,643 +2,1222 @@
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-<title>鲲鉴智策 · 可解释时序预测与决策平台</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>hao</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%230e1114'/%3E%3Ccircle cx='16' cy='16' r='7' fill='none' stroke='%23ffc857' stroke-width='2.5'/%3E%3Ccircle cx='16' cy='16' r='2.5' fill='%23ffc857'/%3E%3C/svg%3E">
+<style>
+  :root{
+    --bg:#0b0d10;
+    --bg-2:#12161b;
+    --line:rgba(255,255,255,.10);
+    --line-strong:rgba(255,255,255,.18);
+    --txt:#eceff3;
+    --txt-dim:#9aa4b0;
+    --accent:#ffc857;
+    --danger:#ff5d5d;
+    --ok:#4ad991;
+    --radius:12px;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{height:100%}
+  body{
+    margin:0;
+    background:var(--bg);
+    color:var(--txt);
+    font-family:ui-sans-serif,-apple-system,"Segoe UI","Microsoft YaHei","PingFang SC",sans-serif;
+    font-size:14px;
+    line-height:1.5;
+    display:flex;
+    justify-content:center;
+  }
+  #app{
+    width:100%;
+    max-width:900px;
+    padding:10px 10px 18px;
+    display:flex;
+    flex-direction:column;
+    gap:10px;
+  }
 
-<!-- 样式引擎（本地，离线可用） -->
-<script src="vendor/tailwind.js"></script>
-<!-- Excel 导入导出库（本地，离线可用） -->
-<script src="vendor/xlsx.bundle.js"></script>
+  /* ===== 顶栏 ===== */
+  .topbar{display:flex;align-items:center;gap:10px;padding:4px 2px}
+  .brand{display:flex;align-items:center;gap:8px;font-weight:600;letter-spacing:.02em}
+  .brand svg{width:18px;height:18px;flex:none}
+  .brand span{font-size:15px}
+  .status{
+    margin-left:auto;
+    display:flex;align-items:center;gap:6px;
+    font-size:12px;color:var(--txt-dim);
+    padding:4px 10px;border:1px solid var(--line);border-radius:999px;
+    white-space:nowrap;
+  }
+  .dot{width:6px;height:6px;border-radius:50%;background:#6b7280;flex:none}
+  .dot.on{background:var(--ok);box-shadow:0 0 0 3px rgba(74,217,145,.15)}
+  .dot.warn{background:var(--accent)}
+  .dot.err{background:var(--danger)}
 
-<!-- 分层样式表 -->
-<link rel="stylesheet" href="css/base.css">
-<link rel="stylesheet" href="css/theme.css">
-<link rel="stylesheet" href="css/login.css">
+  /* ===== 取景区 ===== */
+  .stage{
+    position:relative;
+    width:100%;
+    aspect-ratio:4/3;
+    background:#000;
+    border:1px solid var(--line);
+    border-radius:var(--radius);
+    overflow:hidden;
+  }
+  .stage video{
+    position:absolute;inset:0;
+    width:100%;height:100%;
+    object-fit:contain;
+    background:#000;
+    display:none;
+  }
+  .stage.live video{display:block}
+  .stage video.mirror{transform:scaleX(-1)}
+  .grid{position:absolute;inset:0;pointer-events:none;display:none}
+  .grid.on{display:block}
+  .grid .v1,.grid .v2{position:absolute;top:0;bottom:0;width:1px;background:rgba(255,255,255,.26)}
+  .grid .v1{left:33.333%}
+  .grid .v2{left:66.666%}
+  .grid .h1,.grid .h2{position:absolute;left:0;right:0;height:1px;background:rgba(255,255,255,.26)}
+  .grid .h1{top:33.333%}
+  .grid .h2{top:66.666%}
+
+  .empty{
+    position:absolute;inset:0;display:flex;flex-direction:column;
+    align-items:center;justify-content:center;gap:10px;padding:24px;text-align:center;
+  }
+  .empty svg{width:44px;height:44px;opacity:.45}
+  .empty h3{margin:0;font-size:15px;font-weight:600}
+  .empty p{margin:0;font-size:13px;color:var(--txt-dim);max-width:340px}
+  .stage.live .empty{display:none}
+
+  .flash{position:absolute;inset:0;background:#fff;opacity:0;pointer-events:none}
+  .flash.go{animation:flash .32s ease-out}
+  @keyframes flash{0%{opacity:.85}100%{opacity:0}}
+
+  .counter{
+    position:absolute;inset:0;display:none;
+    align-items:center;justify-content:center;
+    font-size:56px;font-weight:700;color:#fff;
+    text-shadow:0 2px 18px rgba(0,0,0,.6);
+    pointer-events:none;
+  }
+  .counter.on{display:flex}
+
+  .rec-badge{
+    position:absolute;top:10px;left:10px;display:none;align-items:center;gap:6px;
+    padding:4px 10px;border-radius:999px;background:rgba(0,0,0,.62);
+    font-size:12px;font-variant-numeric:tabular-nums;letter-spacing:.04em;
+  }
+  .rec-badge.on{display:flex}
+  .rec-badge i{width:7px;height:7px;border-radius:50%;background:var(--danger);animation:blink 1s steps(2,end) infinite}
+  @keyframes blink{50%{opacity:.2}}
+
+  .stage-meta{
+    position:absolute;bottom:8px;left:10px;right:10px;
+    display:flex;justify-content:space-between;gap:8px;
+    font-size:11px;color:rgba(255,255,255,.72);
+    font-variant-numeric:tabular-nums;
+    pointer-events:none;
+  }
+
+  /* ===== 设置面板 ===== */
+  .panel{
+    display:grid;grid-template-columns:repeat(2,minmax(0,1fr));
+    gap:8px;
+    padding:10px;
+    background:var(--bg-2);
+    border:1px solid var(--line);
+    border-radius:var(--radius);
+  }
+  .field{display:flex;flex-direction:column;gap:5px;min-width:0}
+  .field label{font-size:11.5px;color:var(--txt-dim);letter-spacing:.02em}
+  select,button{
+    font:inherit;color:var(--txt);
+    background:#181d23;
+    border:1px solid var(--line-strong);
+    border-radius:9px;
+    min-height:38px;
+    padding:0 10px;
+    cursor:pointer;
+    transition:background .15s,border-color .15s,color .15s;
+  }
+  select{
+    width:100%;appearance:none;
+    background-image:linear-gradient(45deg,transparent 50%,var(--txt-dim) 50%),linear-gradient(135deg,var(--txt-dim) 50%,transparent 50%);
+    background-position:calc(100% - 15px) 16px,calc(100% - 10px) 16px;
+    background-size:5px 5px,5px 5px;
+    background-repeat:no-repeat;
+    padding-right:28px;
+    text-overflow:ellipsis;
+  }
+  button:hover{border-color:rgba(255,255,255,.3)}
+  button:focus-visible,select:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+  button.toggle[aria-pressed="true"]{border-color:var(--accent);color:var(--accent);background:rgba(255,200,87,.08)}
+  button:disabled{opacity:.38;cursor:not-allowed}
+
+  .slider{display:flex;align-items:center;gap:8px;min-height:38px}
+  input[type=range]{
+    flex:1;min-width:0;-webkit-appearance:none;appearance:none;height:22px;background:transparent;cursor:pointer;
+  }
+  input[type=range]::-webkit-slider-runnable-track{height:3px;background:rgba(255,255,255,.18);border-radius:2px}
+  input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:16px;height:16px;border-radius:50%;background:var(--accent);margin-top:-6.5px}
+  input[type=range]::-moz-range-track{height:3px;background:rgba(255,255,255,.18);border-radius:2px}
+  input[type=range]::-moz-range-thumb{width:15px;height:15px;border:none;border-radius:50%;background:var(--accent)}
+
+  /* ===== 主控区 ===== */
+  .controls{
+    display:grid;grid-template-columns:1fr auto 1fr;
+    align-items:center;gap:10px;
+    padding:6px 2px;
+  }
+  .controls .side{display:flex;gap:8px;min-width:0}
+  .controls .side.right{justify-content:flex-end}
+  .icon-btn{
+    width:46px;height:46px;min-height:46px;padding:0;
+    display:flex;align-items:center;justify-content:center;
+    border-radius:50%;
+    background:#171c22;
+  }
+  .icon-btn svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+  .icon-btn[aria-pressed="true"]{border-color:var(--accent);color:var(--accent)}
+
+  .shutter{
+    width:72px;height:72px;min-height:72px;padding:0;border-radius:50%;
+    background:transparent;border:3px solid rgba(255,255,255,.5);
+    display:flex;align-items:center;justify-content:center;
+  }
+  .shutter i{width:54px;height:54px;border-radius:50%;background:var(--txt);transition:transform .12s,background .2s}
+  .shutter:active i{transform:scale(.92)}
+  .shutter:disabled{border-color:rgba(255,255,255,.16)}
+  .shutter:disabled i{background:#3a424c}
+
+  .rec-btn{
+    width:46px;height:46px;min-height:46px;padding:0;border-radius:50%;
+    display:flex;align-items:center;justify-content:center;
+    background:#171c22;border:1px solid var(--line-strong);
+  }
+  .rec-btn i{width:18px;height:18px;border-radius:50%;background:var(--danger);transition:border-radius .2s,width .2s,height .2s}
+  .rec-btn[data-rec="1"] i{width:15px;height:15px;border-radius:3px}
+
+  .action-btn{min-height:38px;padding:0 12px;font-size:13px}
+
+  /* ===== 素材区 ===== */
+  .gallery-wrap{background:var(--bg-2);border:1px solid var(--line);border-radius:var(--radius);padding:10px}
+  .gallery-head{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+  .gallery-head h4{margin:0;font-size:12.5px;font-weight:600;color:var(--txt-dim);letter-spacing:.04em}
+  .gallery-head .cnt{font-size:11.5px;color:var(--txt-dim);font-variant-numeric:tabular-nums}
+  .gallery-head .clear{margin-left:auto;font-size:12px;min-height:30px;padding:0 10px}
+  .gallery{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px}
+  .gallery-empty{grid-column:1/-1;padding:14px 6px;text-align:center;font-size:12.5px;color:#66707c}
+  .thumb{
+    position:relative;aspect-ratio:1/1;border-radius:8px;overflow:hidden;
+    border:1px solid var(--line);background:#000;cursor:pointer;padding:0;min-height:0;
+  }
+  .thumb img,.thumb video{width:100%;height:100%;object-fit:cover;display:block;pointer-events:none}
+  .thumb .tag{
+    position:absolute;left:4px;bottom:4px;font-size:10px;padding:1px 5px;border-radius:4px;
+    background:rgba(0,0,0,.7);color:#fff;letter-spacing:.04em;
+  }
+  .thumb .del{
+    position:absolute;top:3px;right:3px;width:22px;height:22px;min-height:22px;padding:0;
+    border-radius:50%;background:rgba(0,0,0,.65);border:1px solid rgba(255,255,255,.2);
+    display:flex;align-items:center;justify-content:center;font-size:13px;line-height:1;color:#fff;
+  }
+  .thumb .del:hover{background:rgba(255,93,93,.75)}
+
+  /* ===== 预览弹层 ===== */
+  .viewer{position:fixed;inset:0;z-index:60;display:none;background:rgba(6,8,10,.94);padding:16px}
+  .viewer.on{display:flex;flex-direction:column;gap:12px}
+  .viewer .vbody{flex:1;min-height:0;display:flex;align-items:center;justify-content:center}
+  .viewer img,.viewer video{max-width:100%;max-height:100%;border-radius:10px;background:#000}
+  .viewer .vbar{display:flex;gap:8px;justify-content:center;flex-wrap:wrap}
+  .viewer .vbar button{min-height:42px;padding:0 16px}
+  .viewer .vclose{
+    position:absolute;top:12px;right:12px;width:38px;height:38px;min-height:38px;padding:0;
+    border-radius:50%;display:flex;align-items:center;justify-content:center;background:#1b2027;
+  }
+  .viewer .vinfo{text-align:center;font-size:12px;color:var(--txt-dim);font-variant-numeric:tabular-nums}
+
+  .note{font-size:11.5px;color:#6b7580;text-align:center;padding:0 4px}
+
+  @media (min-width:768px){
+    #app{padding:16px 20px 24px;gap:12px}
+    .stage{aspect-ratio:16/9}
+    .panel{grid-template-columns:repeat(4,minmax(0,1fr))}
+    .gallery{grid-template-columns:repeat(6,minmax(0,1fr))}
+    .shutter{width:78px;height:78px;min-height:78px}
+    .shutter i{width:58px;height:58px}
+  }
+</style>
 </head>
-<body class="bg-slate-100 text-slate-800">
+<body>
+<div id="app">
 
-<!-- ============ 登录页（玻璃拟态 · 深海主题） ============ -->
-
-<div id="login-page" class="fixed inset-0 z-[100] flex justify-center overflow-x-hidden overflow-y-auto px-4 py-3"
-     style="background:linear-gradient(140deg,#02182b 0%,#0b4f6c 45%,#0d9488 100%);-webkit-overflow-scrolling:touch">
-  <!-- 氛围光斑 -->
-  <div class="lg-float1 absolute -top-28 -left-24 w-[26rem] h-[26rem] rounded-full pointer-events-none"
-       style="background:radial-gradient(circle,rgba(45,212,191,.32) 0%,transparent 68%)"></div>
-  <div class="lg-float2 absolute -bottom-36 -right-24 w-[30rem] h-[30rem] rounded-full pointer-events-none"
-       style="background:radial-gradient(circle,rgba(56,189,248,.28) 0%,transparent 68%)"></div>
-  <!-- 上浮气泡 -->
-  <div class="absolute inset-0 pointer-events-none overflow-hidden">
-    <div class="lg-bubble" style="left:8%;width:34px;height:34px;animation-duration:13s;animation-delay:0s"></div>
-    <div class="lg-bubble" style="left:22%;width:14px;height:14px;animation-duration:9s;animation-delay:2.5s"></div>
-    <div class="lg-bubble" style="left:41%;width:22px;height:22px;animation-duration:16s;animation-delay:5s"></div>
-    <div class="lg-bubble" style="left:58%;width:10px;height:10px;animation-duration:11s;animation-delay:1.2s"></div>
-    <div class="lg-bubble" style="left:72%;width:28px;height:28px;animation-duration:14s;animation-delay:3.4s"></div>
-    <div class="lg-bubble" style="left:87%;width:16px;height:16px;animation-duration:10s;animation-delay:6s"></div>
-    <div class="lg-bubble" style="left:93%;width:38px;height:38px;animation-duration:18s;animation-delay:4s"></div>
-  </div>
-
-  <!-- 底部漂动波浪 -->
-  <div class="absolute bottom-0 left-0 w-[200%] pointer-events-none opacity-30">
-    <svg class="lg-wave" width="100%" height="120" viewBox="0 0 1200 120" preserveAspectRatio="none">
-      <path d="M0,60 C150,110 350,10 600,60 C850,110 1050,10 1200,60 L1200,120 L0,120 Z" fill="rgba(255,255,255,.14)"/>
-      <path d="M0,85 C200,35 400,120 600,80 C800,40 1000,120 1200,75 L1200,120 L0,120 Z" fill="rgba(255,255,255,.10)"/>
-    </svg>
-  </div>
-
-  <div class="w-full max-w-sm relative z-10 my-auto py-1">
-    <div class="text-center mb-4">
-      <div class="lg-logo select-none" style="background:transparent;border:none;animation:glowPulse 4.5s ease-in-out infinite;border-radius:50%;overflow:visible">
-        <svg width="96" height="96" viewBox="0 0 512 512" fill="none">
-          <defs>
-            <radialGradient id="lgAu" cx="0.3" cy="0.2" r="0.7">
-              <stop offset="0" stop-color="#2dd4bf" stop-opacity="0.5"/><stop offset="1" stop-color="#000" stop-opacity="0"/>
-            </radialGradient>
-            <linearGradient id="lgBody" x1="0.05" y1="0.5" x2="0.95" y2="0.5">
-              <stop offset="0" stop-color="#5eead4"/><stop offset="0.45" stop-color="#2dd4bf"/>
-              <stop offset="0.78" stop-color="#38bdf8"/><stop offset="1" stop-color="#a5b4fc"/>
-            </linearGradient>
-            <linearGradient id="lgFin" x1="0" y1="0" x2="1" y2="1">
-              <stop offset="0" stop-color="#99f6e4"/><stop offset="1" stop-color="#38bdf8"/>
-            </linearGradient>
-            <linearGradient id="lgRing" x1="0" y1="0" x2="1" y2="1">
-              <stop offset="0" stop-color="#5eead4" stop-opacity="0"/>
-              <stop offset="0.35" stop-color="#5eead4" stop-opacity="0.95"/>
-              <stop offset="0.7" stop-color="#38bdf8" stop-opacity="0.95"/>
-              <stop offset="1" stop-color="#818cf8" stop-opacity="0"/>
-            </linearGradient>
-          </defs>
-          <circle cx="256" cy="256" r="240" fill="url(#lgAu)"/>
-          <circle cx="256" cy="256" r="188" fill="none" stroke="#99f6e4" stroke-opacity="0.16" stroke-width="3"/>
-          <circle cx="256" cy="256" r="188" fill="none" stroke="url(#lgRing)" stroke-width="9" stroke-linecap="round"
-                  stroke-dasharray="290 900" transform="rotate(-38 256 256)"/>
-          <g transform="rotate(-9 256 256)">
-            <path d="M136 262 C116 236 94 218 80 224 C88 243 94 254 98 262 C94 270 88 281 80 300 C94 306 116 288 136 262 Z" fill="url(#lgFin)" opacity="0.92"/>
-            <path d="M244 198 C258 168 284 152 304 154 C296 174 286 190 278 206 Z" fill="url(#lgFin)" opacity="0.88"/>
-            <path d="M246 312 C238 336 244 358 258 368 C271 349 275 330 272 316 Z" fill="url(#lgFin)" opacity="0.8"/>
-            <path d="M130 262 C170 206 252 184 318 200 C358 210 388 238 400 262 C388 286 358 314 318 324 C252 340 170 318 130 262 Z" fill="url(#lgBody)"/>
-            <g stroke="#04202E" stroke-opacity="0.26" stroke-width="7" fill="none" stroke-linecap="round">
-              <path d="M196 226 C232 216 268 216 298 228"/>
-              <path d="M188 258 C228 248 272 248 308 260"/>
-              <path d="M196 290 C232 300 268 300 298 288"/>
-            </g>
-            <path d="M160 236 C196 206 250 194 302 202 C256 198 200 214 164 246 Z" fill="#ecfeff" opacity="0.55"/>
-            <circle cx="372" cy="248" r="17" fill="#04121E"/>
-            <circle cx="367" cy="243" r="6" fill="#ecfeff" opacity="0.95"/>
-          </g>
-          <g fill="#ffffff">
-            <path d="M414 118 l4.6 11.4 11.4 4.6 -11.4 4.6 -4.6 11.4 -4.6 -11.4 -11.4 -4.6 11.4 -4.6 Z" opacity="0.92"/>
-            <circle cx="438" cy="164" r="6" opacity="0.55"/><circle cx="392" cy="96" r="4" opacity="0.4"/>
-          </g>
-        </svg>
-      </div>
-      <h1 class="text-[1.9rem] font-bold tracking-[0.2em] lg-brand">鲲鉴智策</h1>
-      <p class="text-teal-100/90 text-[12px] mt-1 tracking-[0.18em]">智慧水产 · 可解释时序预测与决策平台</p>
-      <div class="lg-chips flex items-center justify-center gap-2 mt-2.5 flex-wrap">
-        <span class="lg-chip">🧠 SHAP 归因</span>
-        <span class="lg-chip">🔮 LSTM 预测</span>
-        <span class="lg-chip">📦 水产进销存</span>
-      </div>
-    </div>
-
-    <div class="lg-card rounded-3xl p-5 fade-in" style="background:rgba(255,255,255,.10);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border:1px solid rgba(255,255,255,.20);box-shadow:0 20px 60px rgba(2,24,43,.45)">
-      <!-- 登录 -->
-      <div id="login-form">
-        <h2 class="font-bold text-lg mb-3 text-white">账号登录</h2>
-        <div class="space-y-3">
-          <div>
-            <label class="text-xs text-teal-100/70">登录账号</label>
-            <div class="lg-input-wrap"><span class="lg-input-ico">👤</span>
-            <input id="lg-user" class="lg-input" placeholder="请输入账号" autocomplete="username" onkeydown="if(event.key==='Enter')doLogin()"></div>
-          </div>
-          <div>
-            <label class="text-xs text-teal-100/70">密码</label>
-            <div class="lg-input-wrap">
-              <span class="lg-input-ico">🔒</span>
-              <input id="lg-pass" type="password" class="lg-input" style="padding-right:2.6rem" placeholder="请输入密码" autocomplete="current-password" onkeydown="if(event.key==='Enter')doLogin()">
-              <button onclick="togglePass('lg-pass',this)" class="absolute right-2 top-1/2 -translate-y-1/2 text-white/50 text-xs px-1">👁</button>
-            </div>
-          </div>
-          <label class="flex items-center gap-2 text-sm text-teal-100/80 select-none">
-            <input id="lg-remember" type="checkbox" class="rounded accent-teal-400" checked> 记住登录状态
-          </label>
-          <p id="login-error" class="hidden text-sm text-rose-300"></p>
-          <button onclick="doLogin()" class="lg-btn">登 录</button>
-          <div class="flex items-center justify-between text-sm pt-1">
-            <button onclick="showLoginView('register')" class="text-teal-200 hover:text-white transition-colors">注册新账号</button>
-            <button onclick="showLoginView('forgot')" class="text-white/45 hover:text-white/80 transition-colors">忘记密码？</button>
-          </div>
-        </div>
-        <div class="mt-3 pt-3 border-t border-white/15 text-[11px] text-white/40 leading-relaxed">
-          <div class="flex items-center justify-between gap-2">
-            <span>默认管理员：<b class="text-white/65">admin</b> / <b class="text-white/65">admin123</b></span>
-            <button onclick="lgDemoFill()" class="lg-demo">⚡ 一键填入</button>
-          </div>
-          <p class="mt-1.5">首次登录后请到「数据管理」页修改密码。</p>
-        </div>
-      </div>
-
-      <!-- 注册 -->
-      <div id="register-form" class="hidden">
-        <h2 class="font-bold text-lg mb-4 text-white">注册新账号</h2>
-        <div class="space-y-3">
-          <div>
-            <label class="text-xs text-teal-100/70">登录账号 *</label>
-            <div class="lg-input-wrap"><span class="lg-input-ico">👤</span><input id="rg-user" class="lg-input" placeholder="建议使用姓名拼音"></div>
-          </div>
-          <div>
-            <label class="text-xs text-teal-100/70">显示名称</label>
-            <div class="lg-input-wrap"><span class="lg-input-ico">🏷️</span><input id="rg-name" class="lg-input" placeholder="如 张三"></div>
-          </div>
-          <div>
-            <label class="text-xs text-teal-100/70">密码 *（至少6位）</label>
-            <div class="lg-input-wrap"><span class="lg-input-ico">🔒</span><input id="rg-pass" type="password" class="lg-input"></div>
-          </div>
-          <div>
-            <label class="text-xs text-teal-100/70">确认密码 *</label>
-            <div class="lg-input-wrap"><span class="lg-input-ico">🔒</span><input id="rg-pass2" type="password" class="lg-input" onkeydown="if(event.key==='Enter')doRegister()"></div>
-          </div>
-          <p id="register-msg" class="hidden text-sm"></p>
-          <button onclick="doRegister()" class="lg-btn">注 册</button>
-          <button onclick="showLoginView('login')" class="w-full text-white/50 hover:text-white/85 text-sm py-1 transition-colors">← 返回登录</button>
-        </div>
-      </div>
-
-      <!-- 忘记密码 -->
-      <div id="forgot-form" class="hidden">
-        <h2 class="font-bold text-lg mb-4 text-white">重置密码</h2>
-        <div class="space-y-3">
-          <div>
-            <label class="text-xs text-teal-100/70">登录账号</label>
-            <div class="lg-input-wrap"><span class="lg-input-ico">👤</span><input id="fg-user" class="lg-input"></div>
-          </div>
-          <div>
-            <label class="text-xs text-teal-100/70">重置密钥（默认 888888）</label>
-            <div class="lg-input-wrap"><span class="lg-input-ico">🔑</span><input id="fg-key" class="lg-input" placeholder="用于验证身份"></div>
-          </div>
-          <div>
-            <label class="text-xs text-teal-100/70">新密码 *（至少6位）</label>
-            <div class="lg-input-wrap"><span class="lg-input-ico">🔒</span><input id="fg-pass" type="password" class="lg-input"></div>
-          </div>
-          <p id="forgot-msg" class="hidden text-sm"></p>
-          <button onclick="doReset()" class="lg-btn">重置密码</button>
-          <button onclick="showLoginView('login')" class="w-full text-white/50 hover:text-white/85 text-sm py-1 transition-colors">← 返回登录</button>
-        </div>
-      </div>
-    </div>
-    <p class="text-center text-teal-100/60 text-[11px] mt-4 tracking-[.12em]">KUNJIAN · Explainable AI for Aquaculture</p>
-  </div>
-</div>
-
-<!-- 顶部导航 -->
-<header id="app-header" class="hidden bg-white shadow-sm sticky top-0 z-40 no-print">
-  <div class="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between flex-wrap gap-2">
-    <div class="flex items-center gap-3">
-      <svg width="40" height="40" viewBox="0 0 512 512" fill="none" class="drop-shadow-md">
-        <defs>
-          <linearGradient id="hBody" x1="0.05" y1="0.5" x2="0.95" y2="0.5">
-            <stop offset="0" stop-color="#5eead4"/><stop offset="0.5" stop-color="#2dd4bf"/><stop offset="1" stop-color="#a5b4fc"/>
-          </linearGradient>
-          <linearGradient id="hFin" x1="0" y1="0" x2="1" y2="1">
-            <stop offset="0" stop-color="#99f6e4"/><stop offset="1" stop-color="#38bdf8"/>
-          </linearGradient>
-          <linearGradient id="hRing" x1="0" y1="0" x2="1" y2="1">
-            <stop offset="0" stop-color="#5eead4" stop-opacity="0"/>
-            <stop offset="0.4" stop-color="#14b8a6" stop-opacity="0.9"/>
-            <stop offset="1" stop-color="#818cf8" stop-opacity="0"/>
-          </linearGradient>
-        </defs>
-        <circle cx="256" cy="256" r="188" fill="none" stroke="url(#hRing)" stroke-width="16" stroke-linecap="round" stroke-dasharray="290 900" transform="rotate(-38 256 256)"/>
-        <g transform="rotate(-9 256 256)">
-          <path d="M136 262 C116 236 94 218 80 224 C88 243 94 254 98 262 C94 270 88 281 80 300 C94 306 116 288 136 262 Z" fill="url(#hFin)" opacity="0.92"/>
-          <path d="M244 198 C258 168 284 152 304 154 C296 174 286 190 278 206 Z" fill="url(#hFin)" opacity="0.88"/>
-          <path d="M246 312 C238 336 244 358 258 368 C271 349 275 330 272 316 Z" fill="url(#hFin)" opacity="0.8"/>
-          <path d="M130 262 C170 206 252 184 318 200 C358 210 388 238 400 262 C388 286 358 314 318 324 C252 340 170 318 130 262 Z" fill="url(#hBody)"/>
-          <circle cx="372" cy="248" r="15" fill="#0f172a"/>
-          <circle cx="367" cy="243" r="5" fill="#ecfeff"/>
-        </g>
+  <!-- ===== 顶栏 ===== -->
+  <header class="topbar">
+    <div class="brand">
+      <svg viewBox="0 0 24 24" fill="none" stroke="#ffc857" stroke-width="1.8" stroke-linecap="round">
+        <path d="M4 8h3l1.5-2h7L17 8h3v11H4z"/>
+        <circle cx="12" cy="13.5" r="3.6"/>
       </svg>
-      <div>
-        <h1 class="text-lg font-bold leading-tight">鲲鉴智策<span class="hidden sm:inline text-xs font-medium text-slate-400"> · 可解释时序预测与决策平台</span></h1>
-        <p class="text-[11px] text-slate-400 tracking-wide">智慧水产 · 每一笔预测都有据可循</p>
-      </div>
+      <span>摄像头工作室</span>
     </div>
-    <nav class="flex gap-1 bg-slate-100 rounded-lg p-1">
-      <button onclick="switchTab('forecast')" id="tab-forecast" class="px-4 py-1.5 rounded-md text-sm font-medium">🔮 智能预测</button>
-      <button onclick="switchTab('report')" id="tab-report" class="px-4 py-1.5 rounded-md text-sm font-medium">📊 分析报告</button>
-      <button onclick="switchTab('records')" id="tab-records" class="px-4 py-1.5 rounded-md text-sm font-medium">送货明细</button>
-      <button onclick="switchTab('reconcile')" id="tab-reconcile" class="px-4 py-1.5 rounded-md text-sm font-medium">月度对账</button>
-      <button onclick="switchTab('customers')" id="tab-customers" class="px-4 py-1.5 rounded-md text-sm font-medium">客户管理</button>
-      <button onclick="switchTab('data')" id="tab-data" class="px-4 py-1.5 rounded-md text-sm font-medium">数据管理</button>
-    </nav>
-    <div class="flex items-center gap-2 pl-3 md:border-l">
-      <div class="w-8 h-8 rounded-full bg-teal-100 text-teal-700 flex items-center justify-center text-sm font-bold" id="avatar">A</div>
-      <div class="leading-tight hidden sm:block">
-        <p class="text-sm font-medium" id="current-user">—</p>
-        <p class="text-[11px] text-slate-400" id="current-role">—</p>
-      </div>
-      <button onclick="doLogout()" class="text-slate-400 hover:text-red-500 text-sm px-2" title="退出登录">退出</button>
-    </div>
-  </div>
-</header>
+    <div class="status"><i class="dot" id="statusDot"></i><span id="statusText">未连接</span></div>
+  </header>
 
-<main id="app-main" class="hidden max-w-7xl mx-auto px-4 py-6">
-
-<!-- ============ 送货明细 ============ -->
-<section id="page-records">
-  <!-- 统计卡片 -->
-  <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-5">
-    <div class="stat-card stat-c1 bg-white rounded-xl p-4 shadow-sm">
-      <div class="flex items-center gap-3">
-        <div class="stat-badge" style="background:linear-gradient(135deg,#0f766e,#14b8a6)">📋</div>
-        <div><p class="text-xs text-slate-400 mb-0.5">总记录数</p>
-        <p id="stat-count" class="stat-val text-2xl font-bold text-slate-800">0</p></div>
-      </div>
+  <!-- ===== 取景区 ===== -->
+  <div class="stage" id="stage">
+    <video id="video" playsinline autoplay muted></video>
+    <div class="grid" id="grid">
+      <div class="v1"></div><div class="v2"></div>
+      <div class="h1"></div><div class="h2"></div>
     </div>
-    <div class="stat-card stat-c2 bg-white rounded-xl p-4 shadow-sm">
-      <div class="flex items-center gap-3">
-        <div class="stat-badge" style="background:linear-gradient(135deg,#0d9488,#2dd4bf)">💰</div>
-        <div><p class="text-xs text-slate-400 mb-0.5">总金额（元）</p>
-        <p id="stat-amount" class="stat-val text-2xl font-bold text-teal-600">0.00</p></div>
-      </div>
+    <div class="empty" id="empty">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round">
+        <path d="M4 8h3l1.5-2h7L17 8h3v11H4z"/><circle cx="12" cy="13.5" r="3.6"/>
+        <path d="M3 3l18 18"/>
+      </svg>
+      <h3>还没有画面</h3>
+      <p>点下方圆形快门按钮开启摄像头，并在浏览器弹窗中选择「允许」。绿色状态灯亮起表示已连接。</p>
     </div>
-    <div class="stat-card stat-c3 bg-white rounded-xl p-4 shadow-sm">
-      <div class="flex items-center gap-3">
-        <div class="stat-badge" style="background:linear-gradient(135deg,#0284c7,#38bdf8)">🤝</div>
-        <div><p class="text-xs text-slate-400 mb-0.5">客户数</p>
-        <p id="stat-customers" class="stat-val text-2xl font-bold text-slate-800">0</p></div>
-      </div>
-    </div>
-    <div class="stat-card stat-c4 bg-white rounded-xl p-4 shadow-sm">
-      <div class="flex items-center gap-3">
-        <div class="stat-badge" style="background:linear-gradient(135deg,#059669,#34d399)">📈</div>
-        <div><p class="text-xs text-slate-400 mb-0.5">本月金额（元）</p>
-        <p id="stat-month" class="stat-val text-2xl font-bold text-emerald-600">0.00</p></div>
-      </div>
+    <div class="flash" id="flash"></div>
+    <div class="counter" id="counter"></div>
+    <div class="rec-badge" id="recBadge"><i></i><span id="recTime">00:00</span></div>
+    <div class="stage-meta" id="stageMeta" style="display:none">
+      <span id="metaRes">—</span>
+      <span id="metaDev">—</span>
     </div>
   </div>
 
-  <!-- 工具栏 -->
-  <div class="bg-white rounded-xl p-4 shadow-sm mb-4 flex flex-wrap items-center gap-2 no-print">
-    <button onclick="openEditor()" class="bg-gradient-to-r from-teal-500 to-sky-600 hover:from-teal-400 hover:to-sky-500 text-white px-4 py-2 rounded-lg text-sm font-medium shadow">＋ 新增送货记录</button>
-    <button onclick="exportRecords()" class="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg text-sm font-medium">导出 Excel</button>
-    <div class="flex-1"></div>
-    <select id="f-customer" onchange="renderRecords()" class="border rounded-lg px-3 py-2 text-sm max-w-[180px]"></select>
-    <input id="f-month" type="month" onchange="renderRecords()" class="border rounded-lg px-3 py-2 text-sm">
-    <input id="f-search" placeholder="搜索单号 / 品名..." oninput="renderRecords()" class="border rounded-lg px-3 py-2 text-sm w-44">
-    <button onclick="clearFilters('records')" class="text-slate-400 hover:text-slate-600 text-sm px-2">清空</button>
-  </div>
-
-  <!-- 明细表 -->
-  <div class="bg-white rounded-xl shadow-sm overflow-x-auto">
-    <table class="w-full text-sm min-w-[900px]">
-      <thead class="bg-slate-50 text-slate-500 text-xs">
-        <tr>
-          <th class="px-3 py-3 text-left">送货日期</th>
-          <th class="px-3 py-3 text-left">送货单号</th>
-          <th class="px-3 py-3 text-left">订单编号</th>
-          <th class="px-3 py-3 text-left">客户</th>
-          <th class="px-3 py-3 text-left">品名</th>
-          <th class="px-3 py-3 text-left">规格</th>
-          <th class="px-3 py-3 text-right">数量</th>
-          <th class="px-3 py-3 text-center">单位</th>
-          <th class="px-3 py-3 text-right">单价</th>
-          <th class="px-3 py-3 text-right">金额</th>
-          <th class="px-3 py-3 text-center no-print">操作</th>
-        </tr>
-      </thead>
-      <tbody id="records-body"></tbody>
-    </table>
-    <div id="records-empty" class="hidden py-16 text-center text-slate-400 text-sm">
-      暂无送货记录，点击「新增送货记录」开始录入
+  <!-- ===== 设置面板 ===== -->
+  <div class="panel">
+    <div class="field">
+      <label for="selDevice">摄像头设备</label>
+      <select id="selDevice"><option value="">默认设备</option></select>
     </div>
-  </div>
-</section>
-
-<!-- ============ 月度对账 ============ -->
-<section id="page-reconcile" class="hidden">
-  <div class="bg-white rounded-xl p-4 shadow-sm mb-4 flex flex-wrap items-center gap-2 no-print">
-    <select id="r-customer" onchange="renderReconcile()" class="border rounded-lg px-3 py-2 text-sm max-w-[220px]"></select>
-    <input id="r-month" type="month" onchange="renderReconcile()" class="border rounded-lg px-3 py-2 text-sm">
-    <div class="flex-1"></div>
-    <button onclick="exportReconcile()" class="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg text-sm font-medium">导出对账单 Excel</button>
-    <button onclick="window.print()" class="bg-slate-600 hover:bg-slate-700 text-white px-4 py-2 rounded-lg text-sm font-medium">打印</button>
-  </div>
-  <div id="reconcile-content"></div>
-</section>
-
-<!-- ============ 客户管理 ============ -->
-<section id="page-customers" class="hidden">
-  <div class="bg-white rounded-xl p-4 shadow-sm mb-4 flex flex-wrap items-center gap-2 no-print">
-    <button onclick="openCustomerEditor()" class="bg-gradient-to-r from-teal-500 to-sky-600 hover:from-teal-400 hover:to-sky-500 text-white px-4 py-2 rounded-lg text-sm font-medium shadow">＋ 新增客户</button>
-    <input id="c-search" placeholder="搜索客户名称 / 联系人..." oninput="renderCustomers()" class="border rounded-lg px-3 py-2 text-sm w-56 ml-auto">
-  </div>
-  <div class="bg-white rounded-xl shadow-sm overflow-x-auto">
-    <table class="w-full text-sm min-w-[700px]">
-      <thead class="bg-slate-50 text-slate-500 text-xs">
-        <tr>
-          <th class="px-4 py-3 text-left">客户名称</th>
-          <th class="px-4 py-3 text-left">联系人</th>
-          <th class="px-4 py-3 text-left">电话</th>
-          <th class="px-4 py-3 text-right">累计送货笔数</th>
-          <th class="px-4 py-3 text-right">累计金额（元）</th>
-          <th class="px-4 py-3 text-center no-print">操作</th>
-        </tr>
-      </thead>
-      <tbody id="customers-body"></tbody>
-    </table>
-  </div>
-</section>
-
-<!-- ============ 数据管理 ============ -->
-<section id="page-data" class="hidden">
-  <div class="grid md:grid-cols-2 gap-4">
-    <div class="bg-white rounded-xl p-5 shadow-sm">
-      <h3 class="font-bold mb-2">账号与密码</h3>
-      <p class="text-sm text-slate-500 mb-4">修改当前登录账号 <b id="pwd-user" class="text-slate-700"></b> 的密码。</p>
-      <div class="space-y-2 max-w-xs">
-        <input id="pwd-old" type="password" class="w-full border rounded-lg px-3 py-2 text-sm" placeholder="当前密码">
-        <input id="pwd-new" type="password" class="w-full border rounded-lg px-3 py-2 text-sm" placeholder="新密码（至少6位）">
-        <input id="pwd-new2" type="password" class="w-full border rounded-lg px-3 py-2 text-sm" placeholder="确认新密码">
-        <button onclick="changePassword()" class="bg-slate-700 hover:bg-slate-800 text-white px-4 py-2 rounded-lg text-sm font-medium">修改密码</button>
-      </div>
+    <div class="field">
+      <label for="selRes">采集分辨率</label>
+      <select id="selRes">
+        <option value="1280x720">HD 1280×720</option>
+        <option value="1920x1080" selected>FHD 1920×1080</option>
+        <option value="2560x1440">QHD 2560×1440</option>
+        <option value="3840x2160">4K 3840×2160</option>
+      </select>
     </div>
-    <div class="bg-white rounded-xl p-5 shadow-sm">
-      <h3 class="font-bold mb-2">导出备份</h3>
-      <p class="text-sm text-slate-500 mb-4">将全部数据（送货记录、客户）导出为 JSON 备份文件，可存档或迁移到其他电脑。</p>
-      <button onclick="exportBackup()" class="bg-gradient-to-r from-teal-500 to-sky-600 hover:from-teal-400 hover:to-sky-500 text-white px-4 py-2 rounded-lg text-sm font-medium">导出 JSON 备份</button>
+    <div class="field">
+      <label for="selTimer">自拍延时</label>
+      <select id="selTimer">
+        <option value="0">关闭</option>
+        <option value="3">3 秒</option>
+        <option value="5">5 秒</option>
+        <option value="10">10 秒</option>
+      </select>
     </div>
-    <div class="bg-white rounded-xl p-5 shadow-sm">
-      <h3 class="font-bold mb-2">导入备份</h3>
-      <p class="text-sm text-slate-500 mb-4">从 JSON 备份文件恢复数据。⚠️ 将覆盖当前全部数据，请先导出备份。</p>
-      <input type="file" id="import-file" accept=".json" onchange="importBackup(this)" class="text-sm">
+    <div class="field">
+      <label for="selQuality">照片质量 <span id="qVal">0.92</span></label>
+      <div class="slider"><input type="range" id="selQuality" min="0.5" max="1" step="0.02" value="0.92"></div>
     </div>
-    <div class="bg-white rounded-xl p-5 shadow-sm">
-      <h3 class="font-bold mb-2">导入 Excel 送货明细</h3>
-      <p class="text-sm text-slate-500 mb-2">支持列：送货日期 / 送货单号 / 订单编号 / 客户 / 品名 / 规格 / 数量 / 单位 / 单价</p>
-      <input type="file" id="excel-file" accept=".xlsx,.xls,.csv" onchange="importExcel(this)" class="text-sm">
-      <p id="excel-result" class="text-sm mt-2"></p>
+    <div class="field">
+      <label>镜像预览</label>
+      <button type="button" class="toggle" id="btnMirror" aria-pressed="false">已关闭</button>
     </div>
-    <div class="bg-white rounded-xl p-5 shadow-sm border-2 border-red-100">
-      <h3 class="font-bold mb-2 text-red-600">清空全部数据</h3>
-      <p class="text-sm text-slate-500 mb-4">删除所有送货记录和客户，操作不可恢复，请先备份！</p>
-      <button onclick="clearAllData()" class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg text-sm font-medium">清空全部数据</button>
+    <div class="field">
+      <label>构图辅助线</label>
+      <button type="button" class="toggle" id="btnGrid" aria-pressed="false">已关闭</button>
     </div>
-  </div>
-</section>
-
-<!-- ================= 智能预测 ================= -->
-<section id="page-forecast" class="hidden">
-  <div class="bg-white rounded-xl p-5 shadow-sm mb-4">
-    <h3 class="font-bold mb-1">🔮 智能销量预测</h3>
-    <p class="text-xs text-slate-500 mb-4">基于历史送货数据，内置 <b>LSTM 三子网集成</b>、<b>轻量 TCN</b>、<b>DLinear</b> 与 <b>NLinear</b> 四种深度时序模型，面向 200~1200 条小样本自动回测评估并推荐最优模型。</p>
-    <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
-      <div>
-        <label class="text-xs text-slate-500">预测指标</label>
-        <select id="fc-metric" class="w-full border rounded-lg px-3 py-2 text-sm mt-1">
-          <option value="amount">每日销售金额（元）</option>
-          <option value="qty">每日销售数量</option>
-        </select>
-      </div>
-      <div>
-        <label class="text-xs text-slate-500">客户范围</label>
-        <select id="fc-customer" class="w-full border rounded-lg px-3 py-2 text-sm mt-1"><option value="">全部客户</option></select>
-      </div>
-      <div>
-        <label class="text-xs text-slate-500">品名范围</label>
-        <select id="fc-product" class="w-full border rounded-lg px-3 py-2 text-sm mt-1"><option value="">全部品名</option></select>
-      </div>
-      <div>
-        <label class="text-xs text-slate-500">预测未来天数</label>
-        <select id="fc-horizon" class="w-full border rounded-lg px-3 py-2 text-sm mt-1">
-          <option value="7">未来 7 天</option>
-          <option value="14">未来 14 天</option>
-          <option value="30">未来 30 天</option>
-        </select>
-      </div>
+    <div class="field">
+      <label>录像格式</label>
+      <div style="display:flex;align-items:center;color:#9aa4b0;min-height:38px;font-size:12.5px" id="mimeInfo">检测中…</div>
     </div>
-    <div class="flex items-center gap-3 mt-4 flex-wrap">
-      <button onclick="runForecast()" id="fc-run" class="px-6 py-2.5 rounded-lg text-white text-sm font-medium shadow bg-gradient-to-r from-teal-500 to-sky-600 hover:from-teal-400 hover:to-sky-500">开始预测</button>
-      <button onclick="exportForecast()" class="px-5 py-2.5 rounded-lg text-sm bg-slate-100 hover:bg-slate-200 hidden" id="fc-export-btn">导出预测 Excel</button>
-      <span id="fc-status" class="text-xs text-slate-500"></span>
-    </div>
-    <div id="fc-progress-wrap" class="hidden mt-3">
-      <div class="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
-        <div id="fc-progress" class="h-full bg-gradient-to-r from-teal-400 to-sky-500" style="width:0%"></div>
-      </div>
-      <p class="text-xs text-slate-400 mt-1">LSTM 训练中 <span id="fc-progress-text"></span></p>
-    </div>
-  </div>
-
-  <!-- 模型对比 -->
-  <div id="fc-result" class="hidden">
-    <div class="bg-white rounded-xl p-5 shadow-sm mb-4">
-      <h3 class="font-bold mb-3">📊 模型回测对比<span class="text-xs font-normal text-slate-400 ml-2">（按时间顺序留出后 20% 数据做滚动回测，WAPE 越小越准，小样本含零值场景更稳健）</span></h3>
-      <div class="overflow-x-auto">
-        <table class="w-full text-sm min-w-[560px]">
-          <thead class="text-xs text-slate-500 bg-slate-50">
-            <tr>
-              <th class="px-3 py-2 text-left">模型</th><th class="px-3 py-2 text-left">类别</th>
-              <th class="px-3 py-2 text-right">MAE</th><th class="px-3 py-2 text-right">RMSE</th>
-              <th class="px-3 py-2 text-right">WAPE(%)</th><th class="px-3 py-2 text-center">推荐</th>
-            </tr>
-          </thead>
-          <tbody id="fc-model-table"></tbody>
-        </table>
-      </div>
-    </div>
-
-    <div class="bg-white rounded-xl p-5 shadow-sm mb-4">
-      <h3 class="font-bold mb-1">📉 模型效能可视化<span class="text-xs font-normal text-slate-400 ml-2">（左：回测 WAPE 精度对比　右：LSTM 训练收敛过程）</span></h3>
-      <p class="text-xs text-slate-500 mb-3">WAPE 越低越准；损失曲线持续下降且收敛平稳，说明网络训练充分、未出现过拟合。</p>
-      <div class="grid md:grid-cols-2 gap-5">
-        <div><canvas id="mdl-mape" class="w-full"></canvas></div>
-        <div><canvas id="mdl-loss" class="w-full"></canvas></div>
-      </div>
-    </div>
-
-    <div class="bg-white rounded-xl p-5 shadow-sm mb-4">
-      <h3 class="font-bold mb-1">📈 历史与预测完整曲线</h3>
-      <p class="text-xs text-slate-500 mb-3">① 回测验证：黑线为<b>真实销量</b>，彩色曲线为各模型在留出段（后 20%）的<b>回测预测</b>，谁更贴合黑线一目了然；② 完整预测走势：右侧放大展示未来每一天的预测曲线。点击图例可显示/隐藏对应模型。</p>
-      <div id="fc-chart" class="w-full overflow-x-auto"></div>
-    </div>
-
-    <div class="bg-white rounded-xl p-5 shadow-sm">
-      <h3 class="font-bold mb-3">🗓 未来预测明细<span class="text-xs font-normal text-slate-400 ml-2" id="fc-best-note"></span></h3>
-      <div class="overflow-x-auto">
-        <table class="w-full text-sm min-w-[560px]">
-          <thead class="text-xs text-slate-500 bg-slate-50" id="fc-future-head"></thead>
-          <tbody id="fc-future-body"></tbody>
-        </table>
-      </div>
-    </div>
-    <!-- 预测解释与归因（SHAP） -->
-    <div class="bg-white rounded-xl p-5 shadow-sm mt-4">
-      <h3 class="font-bold mb-1">🧠 预测解释与归因分析</h3>
-      <p class="text-xs text-slate-500 mb-3">采用 <b>SHAP 博弈论归因</b>（Shapley 值精确解，非近似采样）把本次预测逐日分解到最近 7 天历史销量，并输出时间敏感度、周期效应与回测置信区间，让预测"有理有据"。</p>
-      <div id="xai-summary"></div>
-      <div class="mt-5">
-        <h4 class="text-sm font-bold text-slate-700 mb-2">① SHAP 特征贡献分解<span class="text-xs font-normal text-slate-400 ml-2">（红=推高预测，绿=拉低预测）</span></h4>
-        <canvas id="xai-shap" class="w-full"></canvas>
-      </div>
-      <div class="grid md:grid-cols-2 gap-5 mt-5">
-        <div>
-          <h4 class="text-sm font-bold text-slate-700 mb-2">② 时间敏感度<span class="text-xs font-normal text-slate-400 ml-2">（模型对各历史日的依赖强度）</span></h4>
-          <canvas id="xai-saliency" class="w-full"></canvas>
+    <div class="field">
+      <label>闪光灯 / 变焦</label>
+      <div style="display:flex;gap:6px;align-items:center;min-height:38px">
+        <button type="button" class="toggle" id="btnTorch" style="flex:1;display:none" aria-pressed="false">补光</button>
+        <div class="slider" style="flex:2;display:none" id="zoomWrap">
+          <input type="range" id="selZoom" min="1" max="1" step="1" value="1">
         </div>
-        <div>
-          <h4 class="text-sm font-bold text-slate-700 mb-2">③ 星期周期效应<span class="text-xs font-normal text-slate-400 ml-2">（日均销量按星期分布）</span></h4>
-          <canvas id="xai-dow" class="w-full"></canvas>
-        </div>
-      </div>
-      <div class="mt-5">
-        <h4 class="text-sm font-bold text-slate-700 mb-2">④ 回测置信区间<span class="text-xs font-normal text-slate-400 ml-2" id="xai-bt-note"></span></h4>
-        <canvas id="xai-backtest" class="w-full"></canvas>
-      </div>
-      <div class="flex gap-3 mt-5 flex-wrap">
-        <button onclick="exportXAI()" class="px-5 py-2.5 rounded-lg text-sm text-white shadow bg-gradient-to-r from-teal-500 to-sky-600 hover:from-teal-400 hover:to-sky-500">导出解读报告 Excel</button>
-        <button onclick="saveXAIPng()" class="px-5 py-2.5 rounded-lg text-sm bg-slate-100 hover:bg-slate-200">保存归因长图 PNG</button>
+        <span style="font-size:12.5px;color:#66707c" id="optHint">当前设备不支持</span>
       </div>
     </div>
   </div>
-</section>
 
-
-<!-- ================= 分析报告 ================= -->
-<section id="page-report" class="hidden">
-  <div class="bg-white rounded-xl p-5 shadow-sm mb-4 flex items-center gap-3 flex-wrap no-print">
-    <div>
-      <h3 class="font-bold">📊 经营分析报告</h3>
-      <p class="text-xs text-slate-500 mt-0.5">基于全部送货数据自动生成：销售趋势、畅销品分析、客户贡献与智能备货建议。</p>
+  <!-- ===== 主控区 ===== -->
+  <div class="controls">
+    <div class="side">
+      <button type="button" class="action-btn" id="btnStart">开启摄像头</button>
     </div>
-    <div class="flex-1"></div>
-    <button onclick="genReport()" class="px-6 py-2.5 rounded-lg text-white text-sm font-medium shadow bg-gradient-to-r from-teal-500 to-sky-600 hover:from-teal-400 hover:to-sky-500">生成报告</button>
-    <button onclick="exportReport()" class="px-5 py-2.5 rounded-lg text-sm bg-slate-100 hover:bg-slate-200 hidden" id="rp-export-btn">导出报告 Excel</button>
+    <button type="button" class="shutter" id="btnShot" aria-label="拍照" title="拍照（空格键）"><i></i></button>
+    <div class="side right">
+      <button type="button" class="rec-btn" id="btnRec" data-rec="0" aria-label="录像" title="录像（R 键）"><i></i></button>
+    </div>
   </div>
-  <div id="report-content"></div>
-</section>
 
-<footer class="no-print text-center text-xs text-slate-400 mt-8 pb-2">
-  <span class="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/80 border border-teal-100 shadow-sm">
-    <span>🐟 鲲鉴智策 · 可解释时序预测与决策平台</span><span class="text-teal-300">v3.2</span>
-    <span class="text-slate-300">|</span><span class="text-teal-500">SHAP · LSTM · XAI</span>
-  </span>
-</footer>
+  <div class="controls" style="padding-top:0">
+    <div class="side">
+      <button type="button" class="icon-btn" id="btnSwitch" title="切换摄像头" aria-label="切换摄像头">
+        <svg viewBox="0 0 24 24"><path d="M4 9a8 8 0 0 1 13.7-4.3L20 7"/><path d="M20 9v-4h-4" transform="translate(0,2)"/><path d="M20 15a8 8 0 0 1-13.7 4.3L4 17"/><path d="M4 15v4h4" transform="translate(0,-2)"/></svg>
+      </button>
+      <button type="button" class="icon-btn" id="btnSaveSettings" title="保存当前设置为默认" aria-label="保存设置">
+        <svg viewBox="0 0 24 24"><path d="M5 4h11l3 3v13H5z"/><path d="M8 4v5h7V4"/><path d="M8 14h8"/></svg>
+      </button>
+    </div>
+    <div></div>
+    <div class="side right">
+      <button type="button" class="icon-btn" id="btnFull" title="全屏取景" aria-label="全屏">
+        <svg viewBox="0 0 24 24"><path d="M4 9V4h5"/><path d="M20 9V4h-5"/><path d="M4 15v5h5"/><path d="M20 15v5h-5"/></svg>
+      </button>
+    </div>
+  </div>
 
-</main>
+  <!-- ===== 素材区 ===== -->
+  <div class="gallery-wrap">
+    <div class="gallery-head">
+      <h4>本次拍摄</h4>
+      <span class="cnt" id="itemCount">0 项</span>
+      <button type="button" class="clear" id="btnClear">清空</button>
+    </div>
+    <div class="gallery" id="gallery">
+      <div class="gallery-empty">还没有拍摄内容。拍下的照片和录像会出现在这里，点击可放大预览并下载。</div>
+    </div>
+  </div>
 
-<!-- ============ 新增/编辑送货记录 弹窗 ============ -->
-<div id="editor-modal" class="hidden fixed inset-0 z-50 bg-black/40 flex items-start justify-center overflow-y-auto p-4 no-print">
-  <div class="bg-white rounded-2xl w-full max-w-4xl my-6 fade-in">
-    <div class="px-6 py-4 border-b flex items-center justify-between">
-      <h3 id="editor-title" class="font-bold text-lg">新增送货记录</h3>
-      <button onclick="closeEditor()" class="text-slate-400 hover:text-slate-600 text-xl leading-none">✕</button>
-    </div>
-    <div class="px-6 py-4">
-      <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
-        <div>
-          <label class="text-xs text-slate-500">客户名称 *</label>
-          <input id="e-customer" list="customer-list" class="w-full border rounded-lg px-3 py-2 text-sm mt-1" placeholder="输入或选择客户">
-          <datalist id="customer-list"></datalist>
-        </div>
-        <div>
-          <label class="text-xs text-slate-500">送货日期 *</label>
-          <input id="e-date" type="date" class="w-full border rounded-lg px-3 py-2 text-sm mt-1">
-        </div>
-        <div>
-          <label class="text-xs text-slate-500">送货单号</label>
-          <input id="e-delivery-no" class="w-full border rounded-lg px-3 py-2 text-sm mt-1" placeholder="如 181650">
-        </div>
-        <div>
-          <label class="text-xs text-slate-500">订单编号</label>
-          <input id="e-order-no" class="w-full border rounded-lg px-3 py-2 text-sm mt-1" placeholder="如 20250825003">
-        </div>
-      </div>
-      <div class="flex items-center justify-between mb-2">
-        <p class="text-sm font-bold text-slate-600">产品明细</p>
-        <button onclick="addDetailRow()" class="text-teal-600 text-sm hover:underline">＋ 添加一行</button>
-      </div>
-      <div class="overflow-x-auto">
-        <table class="w-full text-sm min-w-[640px]">
-          <thead class="text-xs text-slate-500 bg-slate-50">
-            <tr>
-              <th class="px-2 py-2 text-left">品名</th>
-              <th class="px-2 py-2 text-left">规格</th>
-              <th class="px-2 py-2 text-right w-20">数量</th>
-              <th class="px-2 py-2 text-center w-16">单位</th>
-              <th class="px-2 py-2 text-right w-24">单价</th>
-              <th class="px-2 py-2 text-right w-24">金额</th>
-              <th class="w-8"></th>
-            </tr>
-          </thead>
-          <tbody id="detail-body"></tbody>
-        </table>
-      </div>
-      <div class="text-right mt-3 text-sm">
-        合计金额：<span id="editor-total" class="text-xl font-bold text-teal-600">0.00</span> 元
-      </div>
-    </div>
-    <div class="px-6 py-4 border-t flex justify-end gap-2">
-      <button onclick="closeEditor()" class="px-4 py-2 rounded-lg text-sm bg-slate-100 hover:bg-slate-200">取消</button>
-      <button onclick="saveRecord()" class="px-5 py-2 rounded-lg text-sm bg-gradient-to-r from-teal-500 to-sky-600 hover:from-teal-400 hover:to-sky-500 text-white font-medium">保存</button>
-    </div>
+  <p class="note">所有画面只在你的浏览器本地处理，不会上传到任何服务器。关闭页面即清空。</p>
+</div>
+
+<!-- ===== 预览弹层 ===== -->
+<div class="viewer" id="viewer">
+  <button type="button" class="vclose" id="btnCloseViewer" aria-label="关闭">✕</button>
+  <div class="vbody" id="vBody"></div>
+  <div class="vinfo" id="vInfo"></div>
+  <div class="vbar">
+    <button type="button" id="btnDownload">下载文件</button>
+    <button type="button" id="btnShotFrame" style="display:none">截取当前帧</button>
   </div>
 </div>
 
-<!-- ============ 客户编辑 弹窗 ============ -->
-<div id="customer-modal" class="hidden fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4 no-print">
-  <div class="bg-white rounded-2xl w-full max-w-md fade-in">
-    <div class="px-6 py-4 border-b flex items-center justify-between">
-      <h3 id="customer-modal-title" class="font-bold text-lg">新增客户</h3>
-      <button onclick="closeCustomerEditor()" class="text-slate-400 hover:text-slate-600 text-xl leading-none">✕</button>
-    </div>
-    <div class="px-6 py-4 space-y-3">
-      <div>
-        <label class="text-xs text-slate-500">客户名称 *</label>
-        <input id="cu-name" class="w-full border rounded-lg px-3 py-2 text-sm mt-1">
-      </div>
-      <div>
-        <label class="text-xs text-slate-500">联系人</label>
-        <input id="cu-contact" class="w-full border rounded-lg px-3 py-2 text-sm mt-1">
-      </div>
-      <div>
-        <label class="text-xs text-slate-500">电话</label>
-        <input id="cu-phone" class="w-full border rounded-lg px-3 py-2 text-sm mt-1">
-      </div>
-      <div>
-        <label class="text-xs text-slate-500">备注</label>
-        <input id="cu-note" class="w-full border rounded-lg px-3 py-2 text-sm mt-1">
-      </div>
-    </div>
-    <div class="px-6 py-4 border-t flex justify-end gap-2">
-      <button onclick="closeCustomerEditor()" class="px-4 py-2 rounded-lg text-sm bg-slate-100 hover:bg-slate-200">取消</button>
-      <button onclick="saveCustomer()" class="px-5 py-2 rounded-lg text-sm bg-gradient-to-r from-teal-500 to-sky-600 hover:from-teal-400 hover:to-sky-500 text-white font-medium">保存</button>
-    </div>
-  </div>
-</div>
+<script>
+(function(){
+  "use strict";
 
-<div id="toast" class="hidden fixed bottom-6 left-1/2 -translate-x-1/2 bg-slate-800 text-white px-5 py-2.5 rounded-lg text-sm shadow-lg z-[60]"></div>
+  var els = {
+    stage: document.getElementById('stage'),
+    video: document.getElementById('video'),
+    grid: document.getElementById('grid'),
+    flash: document.getElementById('flash'),
+    counter: document.getElementById('counter'),
+    recBadge: document.getElementById('recBadge'),
+    recTime: document.getElementById('recTime'),
+    stageMeta: document.getElementById('stageMeta'),
+    metaRes: document.getElementById('metaRes'),
+    metaDev: document.getElementById('metaDev'),
+    statusDot: document.getElementById('statusDot'),
+    statusText: document.getElementById('statusText'),
+    selDevice: document.getElementById('selDevice'),
+    selRes: document.getElementById('selRes'),
+    selTimer: document.getElementById('selTimer'),
+    selQuality: document.getElementById('selQuality'),
+    qVal: document.getElementById('qVal'),
+    btnMirror: document.getElementById('btnMirror'),
+    btnGrid: document.getElementById('btnGrid'),
+    btnTorch: document.getElementById('btnTorch'),
+    zoomWrap: document.getElementById('zoomWrap'),
+    selZoom: document.getElementById('selZoom'),
+    optHint: document.getElementById('optHint'),
+    mimeInfo: document.getElementById('mimeInfo'),
+    btnStart: document.getElementById('btnStart'),
+    btnShot: document.getElementById('btnShot'),
+    btnRec: document.getElementById('btnRec'),
+    btnSwitch: document.getElementById('btnSwitch'),
+    btnSaveSettings: document.getElementById('btnSaveSettings'),
+    btnFull: document.getElementById('btnFull'),
+    gallery: document.getElementById('gallery'),
+    itemCount: document.getElementById('itemCount'),
+    btnClear: document.getElementById('btnClear'),
+    viewer: document.getElementById('viewer'),
+    vBody: document.getElementById('vBody'),
+    vInfo: document.getElementById('vInfo'),
+    btnDownload: document.getElementById('btnDownload'),
+    btnShotFrame: document.getElementById('btnShotFrame'),
+    btnCloseViewer: document.getElementById('btnCloseViewer')
+  };
 
-<!-- ============================================================
-     JavaScript 分层加载
-     顺序不可调整：core → pages → models → forecast → charts → xai → report → main
-     ============================================================ -->
-<script src="js/core/auth.js"></script>
-<script src="js/core/store.js"></script>
-<script src="js/core/utils.js"></script>
-<script src="js/core/nav.js"></script>
-<script src="js/pages/records.js"></script>
-<script src="js/pages/reconcile.js"></script>
-<script src="js/pages/customers.js"></script>
-<script src="js/pages/io.js"></script>
-<script src="js/models/metrics.js"></script>
-<script src="js/models/linear.js"></script>
-<script src="js/models/tcn.js"></script>
-<script src="js/models/lstm.js"></script>
-<script src="js/forecast.js"></script>
-<script src="js/charts/forecast-chart.js"></script>
-<script src="js/charts/xai-charts.js"></script>
-<script src="js/xai.js"></script>
-<script src="js/report.js"></script>
-<script src="js/main.js"></script>
+  var state = {
+    stream: null,
+    track: null,
+    devices: [],
+    deviceId: '',
+    mirrored: false,
+    grid: false,
+    timer: 0,
+    quality: 0.92,
+    recorder: null,
+    chunks: [],
+    recording: false,
+    recStartTime: 0,
+    recTimerId: 0,
+    items: [],
+    itemSeq: 0,
+    viewing: null,
+    pendingShot: false,
+    torchOn: false,
+    zoomCap: null,
+    mime: ''
+  };
+
+  var SETTINGS_KEY = 'camera-studio-settings-v1';
+
+  /* ---------- 小工具 ---------- */
+  function pad2(n){ return (n < 10 ? '0' : '') + n; }
+  function fmtClock(ms){
+    var s = Math.floor(ms / 1000);
+    var m = Math.floor(s / 60);
+    s = s % 60;
+    if (m >= 60) {
+      var h = Math.floor(m / 60);
+      m = m % 60;
+      return h + ':' + pad2(m) + ':' + pad2(s);
+    }
+    return pad2(m) + ':' + pad2(s);
+  }
+  function fmtBytes(b){
+    if (!b && b !== 0) return '—';
+    if (b < 1024) return b + ' B';
+    if (b < 1024 * 1024) return (b / 1024).toFixed(1) + ' KB';
+    return (b / 1024 / 1024).toFixed(2) + ' MB';
+  }
+  function stamp(){
+    var d = new Date();
+    return d.getFullYear() + pad2(d.getMonth() + 1) + pad2(d.getDate()) + '-' +
+      pad2(d.getHours()) + pad2(d.getMinutes()) + pad2(d.getSeconds());
+  }
+  function setStatus(text, kind){
+    els.statusText.textContent = text;
+    els.statusDot.className = 'dot' + (kind ? ' ' + kind : '');
+  }
+  function toast(msg){
+    setStatus(msg, 'warn');
+    clearTimeout(toast._t);
+    toast._t = setTimeout(function(){
+      if (state.stream) setStatus('已连接', 'on');
+      else setStatus('未连接', '');
+    }, 3200);
+  }
+  function saveSettings(){
+    try {
+      localStorage.setItem(SETTINGS_KEY, JSON.stringify({
+        deviceId: state.deviceId,
+        res: els.selRes.value,
+        timer: els.selTimer.value,
+        quality: state.quality,
+        mirrored: state.mirrored,
+        grid: state.grid
+      }));
+    } catch (e) { /* file:// 下可能不可用，忽略 */ }
+  }
+  function loadSettings(){
+    var raw = null;
+    try { raw = localStorage.getItem(SETTINGS_KEY); } catch (e) { return; }
+    if (!raw) return;
+    try {
+      var s = JSON.parse(raw);
+      if (s.res) els.selRes.value = s.res;
+      if (s.timer !== undefined) els.selTimer.value = s.timer;
+      if (s.quality) {
+        state.quality = s.quality;
+        els.selQuality.value = String(s.quality);
+        els.qVal.textContent = Number(s.quality).toFixed(2);
+      }
+      if (s.deviceId) state.deviceId = s.deviceId;
+      if (s.mirrored !== undefined) setMirror(!!s.mirrored);
+      if (s.grid !== undefined) setGrid(!!s.grid);
+    } catch (e) { /* 损坏的配置直接忽略 */ }
+  }
+
+  /* ---------- 状态与按钮 ---------- */
+  function setMirror(on){
+    state.mirrored = !!on;
+    els.video.classList.toggle('mirror', state.mirrored);
+    els.btnMirror.setAttribute('aria-pressed', state.mirrored ? 'true' : 'false');
+    els.btnMirror.textContent = state.mirrored ? '已开启' : '已关闭';
+  }
+  function setGrid(on){
+    state.grid = !!on;
+    els.grid.classList.toggle('on', state.grid);
+    els.btnGrid.setAttribute('aria-pressed', state.grid ? 'true' : 'false');
+    els.btnGrid.textContent = state.grid ? '已开启' : '已关闭';
+  }
+  function syncButtons(){
+    var live = !!state.stream;
+    els.btnShot.disabled = !live;
+    els.btnRec.disabled = !live;
+    els.btnSwitch.disabled = !live || state.devices.length < 2;
+    els.btnStart.textContent = live ? '关闭摄像头' : '开启摄像头';
+  }
+
+  /* ---------- 摄像头 ---------- */
+  function parseRes(value){
+    var parts = String(value).split('x');
+    return { width: parseInt(parts[0], 10) || 1280, height: parseInt(parts[1], 10) || 720 };
+  }
+
+  function buildConstraints(){
+    var res = parseRes(els.selRes.value);
+    var video = {
+      width: { ideal: res.width },
+      height: { ideal: res.height }
+    };
+    if (state.deviceId) video.deviceId = { exact: state.deviceId };
+    return { audio: false, video: video };
+  }
+
+  function stopStream(){
+    if (state.recording) stopRecording(true);
+    if (state.stream) {
+      state.stream.getTracks().forEach(function(t){ try { t.stop(); } catch (e) {} });
+    }
+    state.stream = null;
+    state.track = null;
+    els.video.srcObject = null;
+    els.stage.classList.remove('live');
+    els.stageMeta.style.display = 'none';
+    els.btnTorch.style.display = 'none';
+    els.zoomWrap.style.display = 'none';
+    els.optHint.style.display = '';
+    els.optHint.textContent = '当前设备不支持';
+  }
+
+  function errorText(err){
+    var name = (err && err.name) || '';
+    if (name === 'NotAllowedError' || name === 'SecurityError') {
+      return '摄像头权限被拒绝。请点浏览器地址栏左侧的权限图标，把「摄像头」改为允许后重试。';
+    }
+    if (name === 'NotFoundError' || name === 'DevicesNotFoundError') {
+      return '没有检测到摄像头设备。请确认设备已连接、驱动正常。';
+    }
+    if (name === 'NotReadableError' || name === 'TrackStartError') {
+      return '摄像头被其他程序占用（如视频会议、微信、相机应用）。请先关闭它们再重试。';
+    }
+    if (name === 'OverconstrainedError' || name === 'ConstraintNotSatisfiedError') {
+      return '当前摄像头不支持所选分辨率，请换一个更低的档位再试。';
+    }
+    if (name === 'AbortError') return '摄像头启动被中断，请重试。';
+    return '启动失败：' + (err && err.message ? err.message : '未知错误');
+  }
+
+  async function startCamera(){
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      setStatus('不可用', 'err');
+      els.stage.classList.remove('live');
+      els.stage.querySelector('.empty h3').textContent = '当前环境无法访问摄像头';
+      els.stage.querySelector('.empty p').textContent =
+        '浏览器只允许在 https 页面、localhost 或本地文件页面中调用摄像头。如果被拦截，可在本文件所在目录执行 python -m http.server 8000，再访问 http://localhost:8000 打开本页。';
+      return;
+    }
+    setStatus('连接中…', 'warn');
+    stopStream();
+    try {
+      var stream = await navigator.mediaDevices.getUserMedia(buildConstraints());
+      state.stream = stream;
+      state.track = stream.getVideoTracks()[0] || null;
+      els.video.srcObject = stream;
+      await els.video.play().catch(function(){});
+      els.stage.classList.add('live');
+      setStatus('已连接', 'on');
+      await refreshDevices();
+      await afterStreamReady();
+    } catch (err) {
+      setStatus('启动失败', 'err');
+      els.stage.classList.remove('live');
+      els.stage.querySelector('.empty h3').textContent = '摄像头启动失败';
+      els.stage.querySelector('.empty p').textContent = errorText(err);
+      syncButtons();
+    }
+  }
+
+  async function refreshDevices(){
+    if (!navigator.mediaDevices || !navigator.mediaDevices.enumerateDevices) return;
+    try {
+      var list = await navigator.mediaDevices.enumerateDevices();
+      state.devices = list.filter(function(d){ return d.kind === 'videoinput'; });
+      var current = '';
+      if (state.track) {
+        var s = state.track.getSettings ? state.track.getSettings() : {};
+        current = s.deviceId || '';
+      }
+      var html = '';
+      state.devices.forEach(function(d, i){
+        var label = d.label || ('摄像头 ' + (i + 1));
+        html += '<option value="' + d.deviceId + '"' + (d.deviceId === current ? ' selected' : '') + '>' +
+          label.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;') + '</option>';
+      });
+      if (!html) html = '<option value="">默认设备</option>';
+      els.selDevice.innerHTML = html;
+      if (current) state.deviceId = current;
+      els.metaDev.textContent = state.devices.length > 1 ? ('共 ' + state.devices.length + ' 个摄像头') : '单摄像头';
+    } catch (e) { /* 枚举失败不影响主流程 */ }
+  }
+
+  async function afterStreamReady(){
+    var s = state.track && state.track.getSettings ? state.track.getSettings() : {};
+    els.metaRes.textContent = (s.width || '?') + ' × ' + (s.height || '?') + (s.frameRate ? (' · ' + Math.round(s.frameRate) + 'fps') : '');
+    els.stageMeta.style.display = 'flex';
+
+    /* 前置摄像头自动镜像 */
+    if (s.facingMode === 'user' && !state.mirrored) setMirror(true);
+
+    /* 能力探测：闪光灯 / 变焦 */
+    var caps = (state.track && state.track.getCapabilities) ? state.track.getCapabilities() : {};
+    if (caps.torch) {
+      els.btnTorch.style.display = '';
+      els.optHint.style.display = 'none';
+    } else {
+      els.btnTorch.style.display = 'none';
+      state.torchOn = false;
+      els.btnTorch.setAttribute('aria-pressed', 'false');
+    }
+    state.zoomCap = caps.zoom || null;
+    if (state.zoomCap && state.zoomCap.max > state.zoomCap.min) {
+      els.selZoom.min = String(state.zoomCap.min);
+      els.selZoom.max = String(state.zoomCap.max);
+      els.selZoom.step = String(state.zoomCap.step || 1);
+      els.selZoom.value = String(s.zoom || state.zoomCap.min);
+      els.zoomWrap.style.display = '';
+      els.optHint.style.display = 'none';
+    } else {
+      els.zoomWrap.style.display = 'none';
+    }
+    if (!caps.torch && !state.zoomCap) {
+      els.optHint.style.display = '';
+      els.optHint.textContent = '当前设备不支持';
+    }
+
+    syncButtons();
+    saveSettings();
+  }
+
+  /* ---------- 拍照 ---------- */
+  function flashEffect(){
+    els.flash.classList.remove('go');
+    void els.flash.offsetWidth;
+    els.flash.classList.add('go');
+  }
+
+  function doCountdown(seconds){
+    return new Promise(function(resolve){
+      if (!seconds) { resolve(); return; }
+      var left = seconds;
+      els.counter.classList.add('on');
+      els.counter.textContent = String(left);
+      var id = setInterval(function(){
+        left -= 1;
+        if (left <= 0) {
+          clearInterval(id);
+          els.counter.classList.remove('on');
+          els.counter.textContent = '';
+          resolve();
+        } else {
+          els.counter.textContent = String(left);
+        }
+      }, 1000);
+    });
+  }
+
+  function grabFrame(){
+    var w = els.video.videoWidth;
+    var h = els.video.videoHeight;
+    if (!w || !h) {
+      var s = (state.track && state.track.getSettings) ? state.track.getSettings() : {};
+      w = s.width;
+      h = s.height;
+    }
+    if (!w || !h) return null;
+    var c = document.createElement('canvas');
+    c.width = w;
+    c.height = h;
+    var ctx = c.getContext('2d');
+    if (state.mirrored) {
+      ctx.translate(w, 0);
+      ctx.scale(-1, 1);
+    }
+    ctx.drawImage(els.video, 0, 0, w, h);
+    return c;
+  }
+
+  function canvasToBlob(canvas, type, quality){
+    return new Promise(function(resolve){
+      if (canvas.toBlob) {
+        canvas.toBlob(function(b){ resolve(b); }, type, quality);
+      } else {
+        var data = canvas.toDataURL(type, quality);
+        var bin = atob(data.split(',')[1]);
+        var arr = new Uint8Array(bin.length);
+        for (var i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
+        resolve(new Blob([arr], { type: type }));
+      }
+    });
+  }
+
+  async function takePhoto(){
+    if (!state.stream || state.pendingShot) return;
+    state.pendingShot = true;
+    els.btnShot.disabled = true;
+    try {
+      await doCountdown(state.timer);
+      var canvas = grabFrame();
+      if (!canvas) { toast('还没有画面，无法拍照'); return; }
+      var blob = await canvasToBlob(canvas, 'image/jpeg', state.quality);
+      if (!blob) { toast('拍照失败，请重试'); return; }
+      flashEffect();
+      addItem({
+        kind: 'photo',
+        blob: blob,
+        url: URL.createObjectURL(blob),
+        w: canvas.width,
+        h: canvas.height,
+        size: blob.size,
+        at: new Date()
+      });
+    } finally {
+      state.pendingShot = false;
+      els.btnShot.disabled = !state.stream;
+      if (state.timer) {
+        /* 延时拍摄期间保持按钮可用性一致 */
+        syncButtons();
+      }
+    }
+  }
+
+  /* ---------- 录像 ---------- */
+  function pickMime(){
+    var candidates = [
+      'video/webm;codecs=vp9,opus',
+      'video/webm;codecs=vp8,opus',
+      'video/webm',
+      'video/mp4'
+    ];
+    if (typeof MediaRecorder === 'undefined') return '';
+    for (var i = 0; i < candidates.length; i++) {
+      try {
+        if (MediaRecorder.isTypeSupported(candidates[i])) return candidates[i];
+      } catch (e) {}
+    }
+    return '';
+  }
+
+  function startRecording(){
+    if (!state.stream || state.recording) return;
+    if (typeof MediaRecorder === 'undefined') {
+      toast('当前浏览器不支持网页录像，请改用 Chrome 或 Edge');
+      return;
+    }
+    var mime = pickMime();
+    var opts = mime ? { mimeType: mime, videoBitsPerSecond: 6000000 } : {};
+    var rec;
+    try {
+      rec = new MediaRecorder(state.stream, opts);
+    } catch (e) {
+      toast('录像初始化失败：' + (e && e.message ? e.message : '未知错误'));
+      return;
+    }
+    state.chunks = [];
+    state.recorder = rec;
+    state.mime = rec.mimeType || mime || 'video/webm';
+
+    rec.ondataavailable = function(ev){
+      if (ev.data && ev.data.size > 0) state.chunks.push(ev.data);
+    };
+    rec.onstop = function(){
+      var blob = new Blob(state.chunks, { type: state.mime });
+      state.chunks = [];
+      if (blob.size > 0) {
+        addItem({
+          kind: 'video',
+          blob: blob,
+          url: URL.createObjectURL(blob),
+          size: blob.size,
+          duration: Date.now() - state.recStartTime,
+          at: new Date()
+        });
+      }
+      state.recording = false;
+      state.recorder = null;
+      els.recBadge.classList.remove('on');
+      els.btnRec.setAttribute('data-rec', '0');
+      clearInterval(state.recTimerId);
+      els.btnShot.disabled = !state.stream;
+      setStatus('已连接', 'on');
+    };
+
+    rec.onerror = function(ev){
+      var msg = (ev && ev.error && ev.error.message) ? ev.error.message : '录像过程出错';
+      toast('录像中断：' + msg);
+      try { rec.stop(); } catch (e) {}
+    };
+
+    /* start 在不同驱动/虚拟设备上可能抛错，先试分片模式，再退回默认模式 */
+    var started = false;
+    try {
+      rec.start(1000);
+      started = true;
+    } catch (e1) {
+      try {
+        rec.start();
+        started = true;
+      } catch (e2) {
+        state.recorder = null;
+        state.chunks = [];
+        toast('这台设备当前无法网页录像，可以先用拍照功能');
+        return;
+      }
+    }
+    if (!started) return;
+
+    state.recording = true;
+    state.recStartTime = Date.now();
+    els.recBadge.classList.add('on');
+    els.btnRec.setAttribute('data-rec', '1');
+    els.btnShot.disabled = true;
+    setStatus('录像中', 'warn');
+    state.recTimerId = setInterval(function(){
+      els.recTime.textContent = fmtClock(Date.now() - state.recStartTime);
+    }, 500);
+    els.recTime.textContent = '00:00';
+  }
+
+  function stopRecording(silent){
+    if (!state.recorder || !state.recording) return;
+    try { state.recorder.stop(); } catch (e) {}
+    clearInterval(state.recTimerId);
+    if (silent) {
+      state.recording = false;
+      els.recBadge.classList.remove('on');
+      els.btnRec.setAttribute('data-rec', '0');
+    }
+  }
+
+  function toggleRecording(){
+    if (state.recording) {
+      stopRecording(false);
+    } else {
+      startRecording();
+    }
+  }
+
+  /* ---------- 素材管理 ---------- */
+  function addItem(item){
+    item.id = 'i' + (++state.itemSeq);
+    state.items.push(item);
+    renderGallery();
+    setStatus('已保存 ' + (item.kind === 'photo' ? '照片' : '录像'), 'on');
+    clearTimeout(addItem._t);
+    addItem._t = setTimeout(function(){
+      if (state.stream) setStatus(state.recording ? '录像中' : '已连接', state.recording ? 'warn' : 'on');
+    }, 2200);
+  }
+
+  function renderGallery(){
+    if (!state.items.length) {
+      els.gallery.innerHTML = '<div class="gallery-empty">还没有拍摄内容。拍下的照片和录像会出现在这里，点击可放大预览并下载。</div>';
+      els.itemCount.textContent = '0 项';
+      return;
+    }
+    var html = '';
+    state.items.slice().reverse().forEach(function(it){
+      html += '<div class="thumb" data-id="' + it.id + '" role="button" tabindex="0">';
+      if (it.kind === 'photo') {
+        html += '<img src="' + it.url + '" alt="照片">';
+        html += '<span class="tag">' + it.w + '×' + it.h + '</span>';
+      } else {
+        html += '<video src="' + it.url + '" muted preload="metadata"></video>';
+        html += '<span class="tag">' + fmtClock(it.duration || 0) + '</span>';
+      }
+      html += '<button type="button" class="del" data-del="' + it.id + '" aria-label="删除">✕</button>';
+      html += '</div>';
+    });
+    els.gallery.innerHTML = html;
+    els.itemCount.textContent = state.items.length + ' 项';
+  }
+
+  function findItem(id){
+    for (var i = 0; i < state.items.length; i++) {
+      if (state.items[i].id === id) return state.items[i];
+    }
+    return null;
+  }
+
+  function openViewer(item){
+    state.viewing = item;
+    els.vBody.innerHTML = '';
+    if (item.kind === 'photo') {
+      var img = document.createElement('img');
+      img.src = item.url;
+      els.vBody.appendChild(img);
+      els.vInfo.textContent = item.w + ' × ' + item.h + ' · ' + fmtBytes(item.size);
+      els.btnShotFrame.style.display = 'none';
+      els.btnDownload.textContent = '下载照片';
+    } else {
+      var v = document.createElement('video');
+      v.src = item.url;
+      v.controls = true;
+      v.loop = true;
+      v.autoplay = true;
+      v.playsInline = true;
+      els.vBody.appendChild(v);
+      els.vInfo.textContent = fmtClock(item.duration || 0) + ' · ' + fmtBytes(item.size) + ' · ' + (state.mime || 'webm');
+      els.btnShotFrame.style.display = '';
+      els.btnDownload.textContent = '下载录像';
+    }
+    els.viewer.classList.add('on');
+  }
+
+  function closeViewer(){
+    els.viewer.classList.remove('on');
+    els.vBody.innerHTML = '';
+    state.viewing = null;
+  }
+
+  function downloadItem(item){
+    if (!item) return;
+    var ext = item.kind === 'photo' ? 'jpg' : (/(mp4)/i.test(state.mime) ? 'mp4' : 'webm');
+    var name = 'capture-' + stamp() + '-' + item.id + '.' + ext;
+    var a = document.createElement('a');
+    a.href = item.url;
+    a.download = name;
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(function(){ document.body.removeChild(a); }, 0);
+    setStatus('已下载 ' + name, 'ok');
+  }
+
+  function captureFrameFromVideo(){
+    var src = els.vBody.querySelector('video');
+    if (!src || !src.videoWidth) { toast('画面还没准备好'); return; }
+    var c = document.createElement('canvas');
+    c.width = src.videoWidth;
+    c.height = src.videoHeight;
+    c.getContext('2d').drawImage(src, 0, 0, c.width, c.height);
+    canvasToBlob(c, 'image/jpeg', state.quality).then(function(blob){
+      if (!blob) return;
+      addItem({
+        kind: 'photo',
+        blob: blob,
+        url: URL.createObjectURL(blob),
+        w: c.width,
+        h: c.height,
+        size: blob.size,
+        at: new Date()
+      });
+      closeViewer();
+      toast('已从录像中截取一帧');
+    });
+  }
+
+  function clearAll(){
+    if (!state.items.length) return;
+    state.items.forEach(function(it){ try { URL.revokeObjectURL(it.url); } catch (e) {} });
+    state.items = [];
+    renderGallery();
+    closeViewer();
+  }
+
+  /* ---------- 全屏 ---------- */
+  function toggleFullscreen(){
+    if (!document.fullscreenElement) {
+      var target = els.stage;
+      if (target.requestFullscreen) {
+        target.requestFullscreen().catch(function(){ toast('全屏被浏览器拒绝'); });
+      } else {
+        toast('当前浏览器不支持全屏');
+      }
+    } else {
+      document.exitFullscreen();
+    }
+  }
+
+  /* ---------- 事件绑定 ---------- */
+  els.btnStart.addEventListener('click', function(){
+    if (state.stream) {
+      stopStream();
+      setStatus('未连接', '');
+      syncButtons();
+    } else {
+      startCamera();
+    }
+  });
+
+  els.btnShot.addEventListener('click', takePhoto);
+  els.btnRec.addEventListener('click', toggleRecording);
+
+  els.btnSwitch.addEventListener('click', function(){
+    if (state.devices.length < 2) { toast('只检测到一个摄像头'); return; }
+    var idx = 0;
+    for (var i = 0; i < state.devices.length; i++) {
+      if (state.devices[i].deviceId === state.deviceId) { idx = i; break; }
+    }
+    var next = state.devices[(idx + 1) % state.devices.length];
+    state.deviceId = next.deviceId;
+    els.selDevice.value = next.deviceId;
+    startCamera();
+  });
+
+  els.selDevice.addEventListener('change', function(){
+    state.deviceId = els.selDevice.value;
+    if (state.stream) startCamera();
+  });
+
+  els.selRes.addEventListener('change', function(){
+    saveSettings();
+    if (state.stream) startCamera();
+  });
+
+  els.selTimer.addEventListener('change', function(){
+    state.timer = parseInt(els.selTimer.value, 10) || 0;
+    saveSettings();
+  });
+
+  els.selQuality.addEventListener('input', function(){
+    state.quality = parseFloat(els.selQuality.value);
+    els.qVal.textContent = state.quality.toFixed(2);
+    saveSettings();
+  });
+
+  els.btnMirror.addEventListener('click', function(){
+    setMirror(!state.mirrored);
+    saveSettings();
+  });
+
+  els.btnGrid.addEventListener('click', function(){
+    setGrid(!state.grid);
+    saveSettings();
+  });
+
+  els.btnTorch.addEventListener('click', async function(){
+    if (!state.track) return;
+    state.torchOn = !state.torchOn;
+    try {
+      await state.track.applyConstraints({ advanced: [{ torch: state.torchOn }] });
+      els.btnTorch.setAttribute('aria-pressed', state.torchOn ? 'true' : 'false');
+      els.btnTorch.textContent = state.torchOn ? '已开启' : '补光';
+    } catch (e) {
+      state.torchOn = false;
+      els.btnTorch.setAttribute('aria-pressed', 'false');
+      toast('该设备无法控制补光灯');
+    }
+  });
+
+  els.selZoom.addEventListener('input', async function(){
+    if (!state.track || !state.zoomCap) return;
+    try {
+      await state.track.applyConstraints({ advanced: [{ zoom: parseFloat(els.selZoom.value) }] });
+    } catch (e) { /* 忽略单次失败 */ }
+  });
+
+  els.btnSaveSettings.addEventListener('click', function(){
+    saveSettings();
+    toast('已保存为默认设置');
+  });
+
+  els.btnFull.addEventListener('click', toggleFullscreen);
+  els.btnClear.addEventListener('click', clearAll);
+
+  els.gallery.addEventListener('click', function(ev){
+    var delBtn = ev.target.closest('.del');
+    if (delBtn) {
+      ev.stopPropagation();
+      var id = delBtn.getAttribute('data-del');
+      var item = findItem(id);
+      if (!item) return;
+      try { URL.revokeObjectURL(item.url); } catch (e) {}
+      state.items = state.items.filter(function(x){ return x.id !== id; });
+      if (state.viewing && state.viewing.id === id) closeViewer();
+      renderGallery();
+      return;
+    }
+    var thumb = ev.target.closest('.thumb');
+    if (thumb) {
+      var it = findItem(thumb.getAttribute('data-id'));
+      if (it) openViewer(it);
+    }
+  });
+
+  els.gallery.addEventListener('keydown', function(ev){
+    if (ev.key !== 'Enter' && ev.key !== ' ') return;
+    var thumb = ev.target.closest('.thumb');
+    if (!thumb) return;
+    ev.preventDefault();
+    var it = findItem(thumb.getAttribute('data-id'));
+    if (it) openViewer(it);
+  });
+
+  els.btnDownload.addEventListener('click', function(){ downloadItem(state.viewing); });
+  els.btnShotFrame.addEventListener('click', captureFrameFromVideo);
+  els.btnCloseViewer.addEventListener('click', closeViewer);
+  els.viewer.addEventListener('click', function(ev){
+    if (ev.target === els.viewer) closeViewer();
+  });
+
+  document.addEventListener('keydown', function(ev){
+    var inField = /^(INPUT|SELECT|TEXTAREA)$/.test((ev.target.tagName || '').toUpperCase());
+    if (ev.key === 'Escape') { closeViewer(); return; }
+    if (inField) return;
+    if (ev.code === 'Space') {
+      ev.preventDefault();
+      if (state.stream) takePhoto();
+    } else if (ev.key === 'r' || ev.key === 'R') {
+      if (state.stream) toggleRecording();
+    }
+  });
+
+  document.addEventListener('visibilitychange', function(){
+    if (document.hidden && state.recording) stopRecording(false);
+  });
+
+  window.addEventListener('beforeunload', function(){
+    state.items.forEach(function(it){ try { URL.revokeObjectURL(it.url); } catch (e) {} });
+  });
+
+  navigator.mediaDevices && navigator.mediaDevices.addEventListener &&
+    navigator.mediaDevices.addEventListener('devicechange', function(){
+      if (state.stream) refreshDevices();
+    });
+
+  /* ---------- 启动 ---------- */
+  (async function init(){
+    loadSettings();
+    setMirror(state.mirrored);
+    setGrid(state.grid);
+    state.timer = parseInt(els.selTimer.value, 10) || 0;
+    state.quality = parseFloat(els.selQuality.value) || 0.92;
+    els.qVal.textContent = state.quality.toFixed(2);
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      setStatus('环境不支持', 'err');
+      els.btnStart.textContent = '环境不支持';
+      els.btnStart.disabled = true;
+      els.stage.querySelector('.empty h3').textContent = '当前环境无法访问摄像头';
+      els.stage.querySelector('.empty p').textContent =
+        '浏览器只允许在 https 页面、localhost 或本地文件页面中调用摄像头。如果被拦截，可在本文件所在目录执行 python -m http.server 8000，再访问 http://localhost:8000 打开本页。';
+      els.mimeInfo.textContent = '不受支持';
+      return;
+    }
+    var mime = pickMime();
+    els.mimeInfo.textContent = mime || '浏览器默认（webm）';
+    state.mime = mime || 'video/webm';
+    syncButtons();
+    setStatus('未连接', '');
+    /* 已有授权时自动拉起摄像头，省一次点击；被拒绝则保持静默 */
+    try {
+      var perm = navigator.permissions && navigator.permissions.query
+        ? await navigator.permissions.query({ name: 'camera' })
+        : null;
+      if (perm && perm.state === 'granted') {
+        await startCamera();
+      }
+    } catch (e) { /* 不支持 permissions API 时忽略 */ }
+  })();
+})();
+</script>
 </body>
 </html>
