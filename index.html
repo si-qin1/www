@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>hao</title>
+<title>摄像头拍照录像工具</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%230e1114'/%3E%3Ccircle cx='16' cy='16' r='7' fill='none' stroke='%23ffc857' stroke-width='2.5'/%3E%3Ccircle cx='16' cy='16' r='2.5' fill='%23ffc857'/%3E%3C/svg%3E">
 <style>
   :root{
@@ -243,6 +243,41 @@
 
   .note{font-size:11.5px;color:#6b7580;text-align:center;padding:0 4px}
 
+  /* ===== GitHub 上传 ===== */
+  .gh{background:var(--bg-2);border:1px solid var(--line);border-radius:var(--radius);padding:10px;display:flex;flex-direction:column;gap:8px}
+  .gh-head{display:flex;align-items:center;gap:8px}
+  .gh-head h4{margin:0;font-size:12.5px;font-weight:600;color:var(--txt-dim);letter-spacing:.04em}
+  .gh-head .state{margin-left:auto;font-size:11.5px;color:var(--txt-dim);text-align:right}
+  .gh-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+  .gh-grid .wide{grid-column:1/-1}
+  input[type=text],input[type=password]{
+    font:inherit;color:var(--txt);background:#181d23;
+    border:1px solid var(--line-strong);border-radius:9px;
+    min-height:38px;padding:0 10px;width:100%;font-size:16px;
+  }
+  input[type=text]:focus-visible,input[type=password]:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+  .gh-actions{display:flex;gap:8px;flex-wrap:wrap}
+  .gh-actions button{flex:1 1 auto;min-height:38px;padding:0 12px;font-size:13px}
+  .gh-actions button.primary{border-color:var(--accent);color:var(--accent)}
+  .gh-tip{font-size:11.5px;color:#6b7580;line-height:1.6;margin:0}
+  .gh-tip b{color:#9aa4b0;font-weight:600}
+  .gh-gallery{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}
+  .gh-gallery a{position:relative;display:block;aspect-ratio:1/1;border-radius:8px;overflow:hidden;border:1px solid var(--line);background:#000}
+  .gh-gallery img{width:100%;height:100%;object-fit:cover;display:block}
+  .gh-gallery .none{grid-column:1/-1;font-size:12.5px;color:#66707c;text-align:center;padding:14px 6px}
+  .gh-gallery .more{grid-column:1/-1;font-size:11.5px;color:#66707c;text-align:center;padding:4px}
+
+  .badge{position:absolute;top:4px;left:4px;font-size:10px;padding:1px 5px;border-radius:4px;color:#fff;background:rgba(0,0,0,.7);letter-spacing:.02em}
+  .badge.pending{background:rgba(255,200,87,.9);color:#141414}
+  .badge.doing{background:rgba(120,170,255,.9);color:#0b0d10}
+  .badge.done{background:rgba(74,217,145,.9);color:#0b0d10}
+  .badge.fail{background:rgba(255,93,93,.9);color:#fff}
+
+  @media (min-width:768px){
+    .gh-grid{grid-template-columns:repeat(4,minmax(0,1fr))}
+    .gh-gallery{grid-template-columns:repeat(6,minmax(0,1fr))}
+  }
+
   @media (min-width:768px){
     #app{padding:16px 20px 24px;gap:12px}
     .stage{aspect-ratio:16/9}
@@ -384,7 +419,57 @@
     </div>
   </div>
 
-  <p class="note">所有画面只在你的浏览器本地处理，不会上传到任何服务器。关闭页面即清空。</p>
+  <!-- ===== GitHub 上传 ===== -->
+  <div class="gh">
+    <div class="gh-head">
+      <h4>GitHub 上传</h4>
+      <span class="state" id="ghState">未配置</span>
+    </div>
+    <div class="gh-grid">
+      <div class="field wide">
+        <label for="ghRepo">仓库（owner/repo）</label>
+        <input type="text" id="ghRepo" placeholder="例如 yourname/camera-photos" autocomplete="off" spellcheck="false">
+      </div>
+      <div class="field">
+        <label for="ghBranch">分支</label>
+        <input type="text" id="ghBranch" value="main" autocomplete="off" spellcheck="false">
+      </div>
+      <div class="field">
+        <label for="ghDir">保存目录</label>
+        <input type="text" id="ghDir" value="photos" autocomplete="off" spellcheck="false">
+      </div>
+      <div class="field wide">
+        <label for="ghToken">访问令牌（只存本机，不写进代码）</label>
+        <input type="password" id="ghToken" placeholder="github_pat_..." autocomplete="off" spellcheck="false">
+      </div>
+      <div class="field">
+        <label for="ghSize">上传尺寸</label>
+        <select id="ghSize">
+          <option value="0">原图不压缩</option>
+          <option value="1600" selected>压到 1600px</option>
+          <option value="2560">压到 2560px</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>拍完自动上传</label>
+        <button type="button" class="toggle" id="ghAuto" aria-pressed="true">已开启</button>
+      </div>
+    </div>
+    <div class="gh-actions">
+      <button type="button" id="ghSave" class="primary">保存配置</button>
+      <button type="button" id="ghTest">测试连接</button>
+      <button type="button" id="ghRetry">上传待传项</button>
+      <button type="button" id="ghLoad">刷新图库</button>
+    </div>
+    <p class="gh-tip">
+      令牌建 <b>Fine-grained PAT</b>，权限只勾 <b>Contents: Read and write</b> 并限定到这一个仓库；填一次存进本机浏览器，不写进 HTML，随时可在 GitHub 吊销。
+    </p>
+    <div class="gh-gallery" id="ghGallery">
+      <div class="none">填好仓库后点「刷新图库」，已上传的照片会显示在这里。</div>
+    </div>
+  </div>
+
+  <p class="note">照片默认只在你的浏览器本地处理；打开上方「拍完自动上传」后，才会推送到你自己的 GitHub 仓库。</p>
 </div>
 
 <!-- ===== 预览弹层 ===== -->
@@ -393,7 +478,9 @@
   <div class="vbody" id="vBody"></div>
   <div class="vinfo" id="vInfo"></div>
   <div class="vbar">
+    <button type="button" id="btnAlbum">保存到相册</button>
     <button type="button" id="btnDownload">下载文件</button>
+    <button type="button" id="btnOpenGh" style="display:none">在 GitHub 打开</button>
     <button type="button" id="btnShotFrame" style="display:none">截取当前帧</button>
   </div>
 </div>
@@ -441,7 +528,21 @@
     vInfo: document.getElementById('vInfo'),
     btnDownload: document.getElementById('btnDownload'),
     btnShotFrame: document.getElementById('btnShotFrame'),
-    btnCloseViewer: document.getElementById('btnCloseViewer')
+    btnCloseViewer: document.getElementById('btnCloseViewer'),
+    btnAlbum: document.getElementById('btnAlbum'),
+    btnOpenGh: document.getElementById('btnOpenGh'),
+    ghRepo: document.getElementById('ghRepo'),
+    ghBranch: document.getElementById('ghBranch'),
+    ghDir: document.getElementById('ghDir'),
+    ghToken: document.getElementById('ghToken'),
+    ghSize: document.getElementById('ghSize'),
+    ghAuto: document.getElementById('ghAuto'),
+    ghState: document.getElementById('ghState'),
+    ghGallery: document.getElementById('ghGallery'),
+    ghSave: document.getElementById('ghSave'),
+    ghTest: document.getElementById('ghTest'),
+    ghRetry: document.getElementById('ghRetry'),
+    ghLoad: document.getElementById('ghLoad')
   };
 
   var state = {
@@ -911,6 +1012,7 @@
     item.id = 'i' + (++state.itemSeq);
     state.items.push(item);
     renderGallery();
+    maybeAutoUpload(item);
     setStatus('已保存 ' + (item.kind === 'photo' ? '照片' : '录像'), 'on');
     clearTimeout(addItem._t);
     addItem._t = setTimeout(function(){
@@ -926,7 +1028,9 @@
     }
     var html = '';
     state.items.slice().reverse().forEach(function(it){
-      html += '<div class="thumb" data-id="' + it.id + '" role="button" tabindex="0">';
+      var btxt = { pending: '待上传', doing: '上传中', done: '已上传', fail: '失败' }[it.upload] || '';
+      var badge = btxt ? '<span class="badge ' + it.upload + '">' + btxt + '</span>' : '';
+      html += '<div class="thumb" data-id="' + it.id + '" role="button" tabindex="0">' + badge;
       if (it.kind === 'photo') {
         html += '<img src="' + it.url + '" alt="照片">';
         html += '<span class="tag">' + it.w + '×' + it.h + '</span>';
@@ -969,6 +1073,12 @@
       els.vInfo.textContent = fmtClock(item.duration || 0) + ' · ' + fmtBytes(item.size) + ' · ' + (state.mime || 'webm');
       els.btnShotFrame.style.display = '';
       els.btnDownload.textContent = '下载录像';
+    }
+    els.btnOpenGh.style.display = item.ghUrl ? '' : 'none';
+    if (item.upload === 'fail' && item.uploadErr) {
+      els.vInfo.textContent += ' · 上传失败：' + item.uploadErr;
+    } else if (item.upload === 'done') {
+      els.vInfo.textContent += ' · 已上传 GitHub';
     }
     els.viewer.classList.add('on');
   }
@@ -1154,6 +1264,25 @@
 
   els.btnDownload.addEventListener('click', function(){ downloadItem(state.viewing); });
   els.btnShotFrame.addEventListener('click', captureFrameFromVideo);
+
+  els.btnAlbum.addEventListener('click', function(){
+    if (state.viewing) saveToAlbum(state.viewing);
+  });
+  els.btnOpenGh.addEventListener('click', function(){
+    if (state.viewing && state.viewing.ghUrl) window.open(state.viewing.ghUrl, '_blank', 'noopener');
+  });
+
+  els.ghAuto.addEventListener('click', function(){
+    setGhAuto(els.ghAuto.getAttribute('aria-pressed') !== 'true');
+    ghSaveCfg();
+  });
+  els.ghSave.addEventListener('click', ghSaveCfg);
+  els.ghTest.addEventListener('click', ghTest);
+  els.ghRetry.addEventListener('click', ghRetryAll);
+  els.ghLoad.addEventListener('click', loadGhGallery);
+  [els.ghRepo, els.ghBranch, els.ghDir, els.ghToken, els.ghSize].forEach(function(el){
+    el.addEventListener('change', ghSaveCfg);
+  });
   els.btnCloseViewer.addEventListener('click', closeViewer);
   els.viewer.addEventListener('click', function(ev){
     if (ev.target === els.viewer) closeViewer();
@@ -1184,11 +1313,277 @@
       if (state.stream) refreshDevices();
     });
 
+  /* ---------- GitHub 上传 ---------- */
+  var GH_KEY = 'camera-studio-github-v1';
+  var GH_API = 'https://api.github.com';
+
+  function ghCfg(){
+    return {
+      repo: (els.ghRepo.value || '').trim().replace(/^https?:\/\/github\.com\//i, '').replace(/\.git$/i, '').replace(/\/+$/,''),
+      branch: (els.ghBranch.value || 'main').trim() || 'main',
+      dir: (els.ghDir.value || 'photos').trim().replace(/^\/+|\/+$/g, '') || 'photos',
+      token: (els.ghToken.value || '').trim(),
+      size: parseInt(els.ghSize.value, 10) || 0,
+      auto: els.ghAuto.getAttribute('aria-pressed') === 'true'
+    };
+  }
+  function ghReady(c){
+    return !!(c.repo && c.repo.indexOf('/') > 0 && c.token);
+  }
+  function ghHeaders(c, extra){
+    var h = { 'Accept': 'application/vnd.github+json', 'X-GitHub-Api-Version': '2022-11-28' };
+    if (c.token) h['Authorization'] = 'Bearer ' + c.token;
+    if (extra) { for (var k in extra) if (extra.hasOwnProperty(k)) h[k] = extra[k]; }
+    return h;
+  }
+  function ghState(text, kind){
+    els.ghState.textContent = text;
+    els.ghState.style.color = kind === 'err' ? 'var(--danger)' : kind === 'ok' ? 'var(--ok)' : 'var(--txt-dim)';
+  }
+  function ghSaveCfg(){
+    var c = ghCfg();
+    try { localStorage.setItem(GH_KEY, JSON.stringify(c)); } catch (e) {}
+    ghState(ghReady(c) ? ('已配置：' + c.repo + ' / ' + c.branch) : '配置不完整', ghReady(c) ? 'ok' : 'err');
+    if (ghReady(c)) loadGhGallery();
+  }
+  function ghLoadCfg(){
+    var raw = null;
+    try { raw = localStorage.getItem(GH_KEY); } catch (e) { return; }
+    if (!raw) return;
+    try {
+      var c = JSON.parse(raw);
+      if (c.repo) els.ghRepo.value = c.repo;
+      if (c.branch) els.ghBranch.value = c.branch;
+      if (c.dir) els.ghDir.value = c.dir;
+      if (c.token) els.ghToken.value = c.token;
+      if (c.size !== undefined) els.ghSize.value = String(c.size);
+      setGhAuto(c.auto !== false);
+      if (ghReady(c)) ghState('已配置：' + c.repo + ' / ' + c.branch, 'ok');
+    } catch (e) {}
+  }
+  function setGhAuto(on){
+    els.ghAuto.setAttribute('aria-pressed', on ? 'true' : 'false');
+    els.ghAuto.textContent = on ? '已开启' : '已关闭';
+  }
+
+  function blobToBase64(blob){
+    return new Promise(function(resolve, reject){
+      var fr = new FileReader();
+      fr.onload = function(){
+        var s = String(fr.result || '');
+        var i = s.indexOf(',');
+        resolve(i >= 0 ? s.slice(i + 1) : s);
+      };
+      fr.onerror = function(){ reject(new Error('读取图片失败')); };
+      fr.readAsDataURL(blob);
+    });
+  }
+
+  function downscale(blob, maxEdge, quality){
+    return new Promise(function(resolve){
+      var img = new Image();
+      img.onload = function(){
+        var scale = Math.min(1, maxEdge / Math.max(img.width, img.height));
+        if (scale >= 1) { resolve(blob); return; }
+        var c = document.createElement('canvas');
+        c.width = Math.round(img.width * scale);
+        c.height = Math.round(img.height * scale);
+        var ctx = c.getContext('2d');
+        ctx.drawImage(img, 0, 0, c.width, c.height);
+        canvasToBlob(c, 'image/jpeg', quality).then(function(b){ resolve(b || blob); });
+      };
+      img.onerror = function(){ resolve(blob); };
+      img.src = URL.createObjectURL(blob);
+    });
+  }
+
+  function ghPath(c, item, ext){
+    var name = 'cap-' + stamp() + '-' + item.id + '.' + ext;
+    return c.dir + '/' + name;
+  }
+
+  async function uploadItem(item){
+    var c = ghCfg();
+    if (!ghReady(c)) { ghState('先填仓库和令牌再上传', 'err'); item.upload = 'fail'; renderGallery(); return; }
+    if (item.upload === 'doing') return;
+    item.upload = 'doing';
+    renderGallery();
+    ghState('上传中…');
+    try {
+      var blob = item.blob;
+      if (item.kind === 'photo' && c.size) {
+        blob = await downscale(blob, c.size, 0.86);
+      }
+      var ext = item.kind === 'photo' ? 'jpg' : (/(mp4)/i.test(state.mime) ? 'mp4' : 'webm');
+      var path = ghPath(c, item, ext);
+      var b64 = await blobToBase64(blob);
+      var res = await fetch(GH_API + '/repos/' + c.repo + '/contents/' + path, {
+        method: 'PUT',
+        headers: ghHeaders(c, { 'Content-Type': 'application/json' }),
+        body: JSON.stringify({
+          message: 'chore(photos): add ' + path.split('/').pop(),
+          content: b64,
+          branch: c.branch
+        })
+      });
+      var data = {};
+      try { data = await res.json(); } catch (e) {}
+      if (!res.ok) {
+        var why = (data && data.message) ? data.message : ('HTTP ' + res.status);
+        if (res.status === 401) why = '令牌无效或已过期';
+        if (res.status === 404) why = '仓库不存在，或令牌没有该仓库的写入权限';
+        if (res.status === 403) why = '权限不足或触发速率限制';
+        throw new Error(why);
+      }
+      item.upload = 'done';
+      item.ghPath = path;
+      item.ghUrl = (data.content && data.content.html_url) ||
+        ('https://github.com/' + c.repo + '/blob/' + c.branch + '/' + path.split('/').map(encodeURIComponent).join('/'));
+      ghState('已上传 ' + path.split('/').pop(), 'ok');
+    } catch (err) {
+      item.upload = 'fail';
+      item.uploadErr = (err && err.message) ? err.message : '上传失败';
+      ghState('上传失败：' + item.uploadErr, 'err');
+    }
+    renderGallery();
+  }
+
+  function maybeAutoUpload(item){
+    var c = ghCfg();
+    if (!c.auto || !ghReady(c)) return;
+    item.upload = 'pending';
+    uploadItem(item);
+  }
+
+  async function ghTest(){
+    var c = ghCfg();
+    if (!ghReady(c)) { ghState('配置不完整：需要 owner/repo 和令牌', 'err'); return; }
+    ghState('测试中…');
+    try {
+      var res = await fetch(GH_API + '/repos/' + c.repo, { headers: ghHeaders(c) });
+      if (!res.ok) {
+        var t = res.status === 401 ? '令牌无效' : res.status === 404 ? '仓库不存在或无权限' : ('HTTP ' + res.status);
+        throw new Error(t);
+      }
+      var d = {};
+      try { d = await res.json(); } catch (e) { d = {}; }
+      ghState('连接正常：' + (d.full_name || c.repo) + (d.private ? '（私有，可正常读写）' : '（公开，照片会公开可见）'), 'ok');
+    } catch (e) {
+      ghState('连接失败：' + ((e && e.message) || e), 'err');
+    }
+  }
+
+  async function ghRetryAll(){
+    var c = ghCfg();
+    if (!ghReady(c)) { ghState('先完成配置', 'err'); return; }
+    var todo = state.items.filter(function(it){ return it.upload !== 'done' && it.upload !== 'doing'; });
+    if (!todo.length) { ghState('没有待上传的内容', 'ok'); return; }
+    for (var i = 0; i < todo.length; i++) {
+      await uploadItem(todo[i]);
+    }
+  }
+
+  function ghRawUrl(c, path){
+    return 'https://github.com/' + c.repo + '/raw/' + c.branch + '/' +
+      path.split('/').map(encodeURIComponent).join('/');
+  }
+
+  async function ghFetchRaw(c, path){
+    var res = await fetch(GH_API + '/repos/' + c.repo + '/contents/' +
+      path.split('/').map(encodeURIComponent).join('/') + '?ref=' + encodeURIComponent(c.branch),
+      { headers: ghHeaders(c, { 'Accept': 'application/vnd.github.raw' }) });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    return await res.blob();
+  }
+
+  async function loadGhGallery(){
+    var c = ghCfg();
+    if (!c.repo || c.repo.indexOf('/') < 0) {
+      els.ghGallery.innerHTML = '<div class="none">先填仓库地址再刷新。</div>';
+      return;
+    }
+    els.ghGallery.innerHTML = '<div class="none">读取中…</div>';
+    try {
+      var res = await fetch(GH_API + '/repos/' + c.repo + '/contents/' +
+        c.dir.split('/').map(encodeURIComponent).join('/') + '?ref=' + encodeURIComponent(c.branch),
+        { headers: ghHeaders(c) });
+      if (!res.ok) {
+        els.ghGallery.innerHTML = '<div class="none">' +
+          (res.status === 404 ? '这个目录还不存在，传第一张照片后会自动创建。' : ('读取失败 HTTP ' + res.status)) +
+          '</div>';
+        return;
+      }
+      var list = await res.json();
+      if (!Array.isArray(list)) list = [];
+      var imgs = list.filter(function(f){
+        return f.type === 'file' && /\.(jpe?g|png|webp|webm|mp4)$/i.test(f.name);
+      }).sort(function(a, b){ return b.name.localeCompare(a.name); });
+      if (!imgs.length) {
+        els.ghGallery.innerHTML = '<div class="none">目录里还没有照片。</div>';
+        return;
+      }
+      els.ghGallery.innerHTML = '';
+      imgs.slice(0, 18).forEach(function(f){
+        var link = document.createElement('a');
+        link.href = f.html_url || ('https://github.com/' + c.repo + '/blob/' + c.branch + '/' + f.path);
+        link.target = '_blank';
+        link.rel = 'noopener';
+        var img = document.createElement('img');
+        img.alt = f.name;
+        img.src = ghRawUrl(c, f.path);
+        img.onerror = function(){
+          if (img.dataset.fb) { img.remove(); return; }
+          img.dataset.fb = '1';
+          ghFetchRaw(c, f.path).then(function(b){ img.src = URL.createObjectURL(b); })
+            .catch(function(){ img.remove(); });
+        };
+        link.appendChild(img);
+        els.ghGallery.appendChild(link);
+      });
+      if (imgs.length > 18) {
+        var more = document.createElement('div');
+        more.className = 'more';
+        more.textContent = '还有 ' + (imgs.length - 18) + ' 个文件，点上面的缩略图或直接在仓库里查看';
+        els.ghGallery.appendChild(more);
+      }
+    } catch (e) {
+      els.ghGallery.innerHTML = '<div class="none">读取失败：' + ((e && e.message) || e) + '</div>';
+    }
+  }
+
+  /* ---------- 保存到手机相册 ---------- */
+  function fileName(item, ext){
+    return 'capture-' + stamp() + '-' + item.id + '.' + ext;
+  }
+
+  async function saveToAlbum(item){
+    if (!item) return;
+    var ext = item.kind === 'photo' ? 'jpg' : (/(mp4)/i.test(state.mime) ? 'mp4' : 'webm');
+    var file;
+    try {
+      file = new File([item.blob], fileName(item, ext), { type: item.blob.type || 'image/jpeg' });
+    } catch (e) {
+      downloadItem(item);
+      return;
+    }
+    if (navigator.canShare && navigator.canShare({ files: [file] })) {
+      try {
+        await navigator.share({ files: [file], title: '保存到相册' });
+        toast('已调起系统分享，选择「存储图像 / 存储到照片」');
+        return;
+      } catch (e) {
+        if (e && e.name === 'AbortError') return;
+      }
+    }
+    downloadItem(item);
+  }
+
   /* ---------- 启动 ---------- */
   (async function init(){
     loadSettings();
     setMirror(state.mirrored);
     setGrid(state.grid);
+    ghLoadCfg();
     state.timer = parseInt(els.selTimer.value, 10) || 0;
     state.quality = parseFloat(els.selQuality.value) || 0.92;
     els.qVal.textContent = state.quality.toFixed(2);
